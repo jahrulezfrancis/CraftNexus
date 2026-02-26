@@ -7,6 +7,15 @@ use soroban_sdk::{
 mod test;
 
 const ESCROW: Symbol = symbol_short!("ESCROW");
+const PLATFORM_FEE: Symbol = symbol_short!("PLATFORM_FEE");
+const PLATFORM_WALLET: Symbol = symbol_short!("PLAT_WALLET");
+const TOTAL_FEES: Symbol = symbol_short!("TOTAL_FEES");
+const ADMIN: Symbol = symbol_short!("ADMIN");
+
+/// Default platform fee in basis points (500 = 5%)
+const DEFAULT_PLATFORM_FEE_BPS: u32 = 500;
+/// Maximum platform fee in basis points (10000 = 100%)
+const MAX_PLATFORM_FEE_BPS: u32 = 1000; // 10% max
 
 #[contracttype]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -29,8 +38,44 @@ pub struct Escrow {
     pub release_window: u64, // Time in seconds before auto-release
 }
 
+/// Platform configuration data
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlatformConfig {
+    pub platform_fee_bps: u32,      // Platform fee in basis points (500 = 5%)
+    pub platform_wallet: Address,    // Wallet address to receive fees
+    pub admin: Address,              // Admin address for management
+}
+
 #[contract]
 pub struct EscrowContract;
+
+/// Initialize the contract with platform configuration
+/// 
+/// # Arguments
+/// * `platform_wallet` - Address that will receive platform fees
+/// * `admin` - Admin address for managing platform settings
+/// * `platform_fee_bps` - Platform fee in basis points (default 500 = 5%)
+pub fn __init(env: Env, platform_wallet: Address, admin: Address, platform_fee_bps: u32) {
+    admin.require_auth();
+    
+    // Validate fee is within bounds
+    assert!(platform_fee_bps <= MAX_PLATFORM_FEE_BPS, "Fee too high");
+    
+    let config = PlatformConfig {
+        platform_fee_bps,
+        platform_wallet: platform_wallet.clone(),
+        admin: admin.clone(),
+    };
+    
+    env.storage().persistent().set(&PLATFORM_FEE, &config);
+    env.storage().persistent().set(&PLATFORM_WALLET, &platform_wallet);
+    env.storage().persistent().set(&ADMIN, &admin);
+    
+    // Initialize total fees to 0
+    let zero: i128 = 0;
+    env.storage().persistent().set(&TOTAL_FEES, &zero);
+}
 
 #[contractimpl]
 impl EscrowContract {
@@ -86,7 +131,20 @@ impl EscrowContract {
         escrow
     }
 
-    /// Release funds to seller (buyer confirms delivery)
+    /// Get platform configuration
+    fn get_platform_config(env: &Env) -> PlatformConfig {
+        env.storage()
+            .persistent()
+            .get(&PLATFORM_FEE)
+            .expect("Platform not initialized")
+    }
+
+    /// Calculate platform fee for a given amount
+    fn calculate_fee(amount: i128, fee_bps: u32) -> i128 {
+        (amount * (fee_bps as i128)) / 10000
+    }
+
+    /// Release funds to seller with platform fee deduction
     /// 
     /// # Arguments
     /// * `order_id` - Order identifier
@@ -105,15 +163,40 @@ impl EscrowContract {
             "Escrow already processed"
         );
 
+        // Get platform config
+        let config = Self::get_platform_config(&env);
+        
+        // Calculate platform fee
+        let fee_amount = Self::calculate_fee(escrow.amount, config.platform_fee_bps);
+        let seller_amount = escrow.amount - fee_amount;
+
         // Update status
         escrow.status = EscrowStatus::Released;
         env.storage()
             .persistent()
             .set(&(ESCROW, order_id), &escrow);
 
-        // Transfer funds to seller
-        let client = token::Client::new(&env, &escrow.token);
-        client.transfer(&env.current_contract_address(), &escrow.seller, &escrow.amount);
+        // Transfer platform fee to platform wallet
+        let token_client = token::Client::new(&env, &escrow.token);
+        if fee_amount > 0 {
+            token_client.transfer(
+                &env.current_contract_address(),
+                &config.platform_wallet,
+                &fee_amount,
+            );
+            
+            // Update total fees collected
+            let mut total_fees: i128 = env
+                .storage()
+                .persistent()
+                .get(&TOTAL_FEES)
+                .unwrap_or(0);
+            total_fees += fee_amount;
+            env.storage().persistent().set(&TOTAL_FEES, &total_fees);
+        }
+        
+        // Transfer remaining funds to seller
+        token_client.transfer(&env.current_contract_address(), &escrow.seller, &seller_amount);
     }
 
     /// Auto-release funds after release window (seller can call)
@@ -140,15 +223,40 @@ impl EscrowContract {
             "Release window not yet elapsed"
         );
 
+        // Get platform config
+        let config = Self::get_platform_config(&env);
+        
+        // Calculate platform fee
+        let fee_amount = Self::calculate_fee(escrow.amount, config.platform_fee_bps);
+        let seller_amount = escrow.amount - fee_amount;
+
         // Update status
         escrow.status = EscrowStatus::Released;
         env.storage()
             .persistent()
             .set(&(ESCROW, order_id), &escrow);
 
-        // Transfer funds to seller
-        let client = token::Client::new(&env, &escrow.token);
-        client.transfer(&env.current_contract_address(), &escrow.seller, &escrow.amount);
+        // Transfer platform fee to platform wallet
+        let token_client = token::Client::new(&env, &escrow.token);
+        if fee_amount > 0 {
+            token_client.transfer(
+                &env.current_contract_address(),
+                &config.platform_wallet,
+                &fee_amount,
+            );
+            
+            // Update total fees collected
+            let mut total_fees: i128 = env
+                .storage()
+                .persistent()
+                .get(&TOTAL_FEES)
+                .unwrap_or(0);
+            total_fees += fee_amount;
+            env.storage().persistent().set(&TOTAL_FEES, &total_fees);
+        }
+        
+        // Transfer remaining funds to seller
+        token_client.transfer(&env.current_contract_address(), &escrow.seller, &seller_amount);
     }
 
     /// Refund funds to buyer (for disputes or cancellations)
@@ -218,5 +326,79 @@ impl EscrowContract {
         let elapsed = current_time - escrow.created_at;
 
         elapsed >= escrow.release_window
+    }
+
+    /// Update platform fee percentage (admin only)
+    /// 
+    /// # Arguments
+    /// * `new_fee_bps` - New fee in basis points
+    pub fn update_platform_fee(env: Env, new_fee_bps: u32) {
+        let config = Self::get_platform_config(&env);
+        config.admin.require_auth();
+        
+        assert!(new_fee_bps <= MAX_PLATFORM_FEE_BPS, "Fee too high");
+        
+        let new_config = PlatformConfig {
+            platform_fee_bps: new_fee_bps,
+            platform_wallet: config.platform_wallet,
+            admin: config.admin,
+        };
+        
+        env.storage().persistent().set(&PLATFORM_FEE, &new_config);
+    }
+
+    /// Update platform wallet address (admin only)
+    /// 
+    /// # Arguments
+    /// * `new_wallet` - New platform wallet address
+    pub fn update_platform_wallet(env: Env, new_wallet: Address) {
+        let config = Self::get_platform_config(&env);
+        config.admin.require_auth();
+        
+        let new_config = PlatformConfig {
+            platform_fee_bps: config.platform_fee_bps,
+            platform_wallet: new_wallet,
+            admin: config.admin,
+        };
+        
+        env.storage().persistent().set(&PLATFORM_FEE, &new_config);
+    }
+
+    /// Get current platform fee percentage
+    pub fn get_platform_fee(env: Env) -> u32 {
+        let config = Self::get_platform_config(&env);
+        config.platform_fee_bps
+    }
+
+    /// Get platform wallet address
+    pub fn get_platform_wallet(env: Env) -> Address {
+        let config = Self::get_platform_config(&env);
+        config.platform_wallet
+    }
+
+    /// Get total fees collected by platform
+    pub fn get_total_fees_collected(env: Env) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&TOTAL_FEES)
+            .unwrap_or(0)
+    }
+
+    /// Calculate the fee for a given amount (for display purposes)
+    /// 
+    /// # Arguments
+    /// * `amount` - The escrow amount
+    pub fn calculate_fee_for_amount(env: Env, amount: i128) -> i128 {
+        let config = Self::get_platform_config(&env);
+        Self::calculate_fee(amount, config.platform_fee_bps)
+    }
+
+    /// Calculate net amount seller will receive
+    /// 
+    /// # Arguments
+    /// * `amount` - The escrow amount
+    pub fn calculate_seller_net_amount(env: Env, amount: i128) -> i128 {
+        let fee = Self::calculate_fee_for_amount(env, amount);
+        amount - fee
     }
 }
