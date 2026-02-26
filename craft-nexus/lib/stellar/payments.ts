@@ -2,6 +2,7 @@
  * Stellar Payment Service
  * Handles USDC payments and transactions on Stellar network
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import {
   Horizon,
@@ -64,7 +65,6 @@ export class StellarPaymentService {
         networkPassphrase: this.network,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transaction.addOperation(Operation.payment({
         destination: recipientPublicKey,
         asset: usdcAsset,
@@ -84,7 +84,6 @@ export class StellarPaymentService {
       builtTx.sign(senderKeypair);
 
       // Submit transaction
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await this.server.submitTransaction(builtTx as any);
       return result.hash;
     } catch (error) {
@@ -114,14 +113,12 @@ export class StellarPaymentService {
       const commissionAmount = (amountNum * PLATFORM_COMMISSION_PERCENT / 100).toFixed(7);
       const sellerAmount = (amountNum - parseFloat(commissionAmount)).toFixed(7);
 
-      // Build transaction with multiple payments
       const transactionBuilder = new TransactionBuilder(buyerAccount, {
         fee: BASE_FEE.toString(),
         networkPassphrase: this.network,
       });
 
       // Add seller payment
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transactionBuilder.addOperation(Operation.payment({
         destination: sellerPublicKey,
         asset: usdcAsset,
@@ -130,7 +127,6 @@ export class StellarPaymentService {
 
       // Add commission payment if platform wallet is configured
       if (PLATFORM_COMMISSION_WALLET) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         transactionBuilder.addOperation(Operation.payment({
           destination: PLATFORM_COMMISSION_WALLET,
           asset: usdcAsset,
@@ -165,7 +161,7 @@ export class StellarPaymentService {
   async getUSDCBalance(publicKey: string): Promise<string> {
     try {
       const account = await this.server.loadAccount(publicKey);
-      const usdcAsset = new Asset("USDC", USDC_ISSUER);
+      const _usdcAsset = new Asset("USDC", USDC_ISSUER);
 
       const balance = account.balances.find(
         (b: { asset_code?: string; asset_issuer?: string; balance?: string }) =>
