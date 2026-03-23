@@ -18,11 +18,11 @@ export const ONBOARDING_SLIDES: OnboardingSlideData[] = [
   },
   // Slide 2 placeholder — fill in when implementing issue #32
   {
-    badge: "Sell & Learn",
+    badge: "10K+ Creators Joined",
     illustrationAlt: "Artisan showcasing products",
     illustrationSrc: "/illustration/artisan-showcase.svg",
-    title: "Reach Thousands\nOf Buyers",
-    subtitle: "List your handmade items and connect\nwith customers worldwide.",
+    title: "Learn From\nSkilled Creators",
+    subtitle: "Access video tutorials and step-by-step guides to master your craft at your own pace.",
     ctaLabel: "Next",
   },
   // Slide 3 - Artisans Complete

@@ -23,14 +23,16 @@ export default function OnboardingSlide({
   return (
     <div className="onboarding-wrapper">
       {/* Badge */}
-      <div className="onboarding-badge">
-        <span className="badge-icon" aria-hidden="true">
-          <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 0L11.5 5.5L17.5 6.5L13 10.5L14.5 16.5L9 13.5L3.5 16.5L5 10.5L0.5 6.5L6.5 5.5L9 0Z" fill="#C4928F" />
-          </svg>
-        </span>
-        <span className="badge-label">{slide.badge}</span>
-      </div>
+      {currentIndex === 2 &&
+        <div className="onboarding-badge">
+          <span className="badge-icon" aria-hidden="true">
+            <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 0L11.5 5.5L17.5 6.5L13 10.5L14.5 16.5L9 13.5L3.5 16.5L5 10.5L0.5 6.5L6.5 5.5L9 0Z" fill="#C4928F" />
+            </svg>
+          </span>
+          <span className="badge-label">{slide.badge}</span>
+        </div>
+      }
 
       {/* Illustration */}
       <div className="onboarding-illustration">
