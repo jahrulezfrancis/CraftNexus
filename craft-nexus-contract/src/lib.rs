@@ -7,9 +7,9 @@ use soroban_sdk::{
 mod test;
 
 const ESCROW: Symbol = symbol_short!("ESCROW");
-const PLATFORM_FEE: Symbol = symbol_short!("PLATFORM_FEE");
-const PLATFORM_WALLET: Symbol = symbol_short!("PLAT_WALLET");
-const TOTAL_FEES: Symbol = symbol_short!("TOTAL_FEES");
+const PLATFORM_FEE: Symbol = symbol_short!("PLAT_FEE");
+const PLATFORM_WALLET: Symbol = symbol_short!("PLAT_WAL");
+const TOTAL_FEES: Symbol = symbol_short!("TOT_FEES");
 const ADMIN: Symbol = symbol_short!("ADMIN");
 
 /// Default platform fee in basis points (500 = 5%)
@@ -81,35 +81,34 @@ pub struct PlatformConfig {
 #[contract]
 pub struct EscrowContract;
 
-/// Initialize the contract with platform configuration
-/// 
-/// # Arguments
-/// * `platform_wallet` - Address that will receive platform fees
-/// * `admin` - Admin address for managing platform settings
-/// * `platform_fee_bps` - Platform fee in basis points (default 500 = 5%)
-pub fn __init(env: Env, platform_wallet: Address, admin: Address, platform_fee_bps: u32) {
-    admin.require_auth();
-    
-    // Validate fee is within bounds
-    assert!(platform_fee_bps <= MAX_PLATFORM_FEE_BPS, "Fee too high");
-    
-    let config = PlatformConfig {
-        platform_fee_bps,
-        platform_wallet: platform_wallet.clone(),
-        admin: admin.clone(),
-    };
-    
-    env.storage().persistent().set(&PLATFORM_FEE, &config);
-    env.storage().persistent().set(&PLATFORM_WALLET, &platform_wallet);
-    env.storage().persistent().set(&ADMIN, &admin);
-    
-    // Initialize total fees to 0
-    let zero: i128 = 0;
-    env.storage().persistent().set(&TOTAL_FEES, &zero);
-}
-
 #[contractimpl]
 impl EscrowContract {
+    /// Initialize the contract with platform configuration
+    /// 
+    /// # Arguments
+    /// * `platform_wallet` - Address that will receive platform fees
+    /// * `admin` - Admin address for managing platform settings
+    /// * `platform_fee_bps` - Platform fee in basis points (default 500 = 5%)
+    pub fn initialize(env: Env, platform_wallet: Address, admin: Address, platform_fee_bps: u32) {
+        admin.require_auth();
+        
+        // Validate fee is within bounds
+        assert!(platform_fee_bps <= MAX_PLATFORM_FEE_BPS, "Fee too high");
+        
+        let config = PlatformConfig {
+            platform_fee_bps,
+            platform_wallet: platform_wallet.clone(),
+            admin: admin.clone(),
+        };
+        
+        env.storage().persistent().set(&PLATFORM_FEE, &config);
+        env.storage().persistent().set(&PLATFORM_WALLET, &platform_wallet);
+        env.storage().persistent().set(&ADMIN, &admin);
+        
+        // Initialize total fees to 0
+        let zero: i128 = 0;
+        env.storage().persistent().set(&TOTAL_FEES, &zero);
+    }
     /// Create a new escrow for an order
     /// 
     /// # Arguments
@@ -167,7 +166,7 @@ impl EscrowContract {
             token: token.clone(),
             release_window: window as u32,
         };
-        env.events().publish(("escrow_created", order_id as u64), event);
+        env.events().publish((Symbol::new(&env, "escrow_created"), order_id as u64), event);
 
         escrow
     }
@@ -240,7 +239,7 @@ impl EscrowContract {
         token_client.transfer(&env.current_contract_address(), &escrow.seller, &seller_amount);
 
         env.events().publish(
-            ("funds_released", order_id as u64),
+            (Symbol::new(&env, "funds_released"), order_id as u64),
             FundsReleasedEvent {
                 escrow_id: order_id as u64,
                 amount: escrow.amount,
@@ -308,7 +307,7 @@ impl EscrowContract {
         token_client.transfer(&env.current_contract_address(), &escrow.seller, &seller_amount);
 
         env.events().publish(
-            ("funds_released", order_id as u64),
+            (Symbol::new(&env, "funds_released"), order_id as u64),
             FundsReleasedEvent {
                 escrow_id: order_id as u64,
                 amount: escrow.amount,
@@ -353,7 +352,7 @@ impl EscrowContract {
         client.transfer(&env.current_contract_address(), &escrow.buyer, &escrow.amount);
 
         env.events().publish(
-            ("funds_refunded", order_id as u64),
+            (Symbol::new(&env, "funds_refunded"), order_id as u64),
             FundsRefundedEvent {
                 escrow_id: order_id as u64,
                 amount: escrow.amount,
@@ -426,7 +425,7 @@ impl EscrowContract {
             .set(&(ESCROW, order_id), &escrow);
 
         env.events().publish(
-            ("escrow_disputed", order_id as u64),
+            (Symbol::new(&env, "escrow_disputed"), order_id as u64),
             EscrowDisputedEvent {
                 escrow_id: order_id as u64,
             },

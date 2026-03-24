@@ -4,6 +4,7 @@ use super::*;
 use soroban_sdk::{testutils::{Address as _, Events, Ledger}, vec, Address, Env, IntoVal, Symbol, token};
 
 fn setup_test(env: &Env) -> (EscrowContractClient<'static>, Address, Address, Address, token::StellarAssetClient<'static>, Address) {
+    env.mock_all_auths();
     let contract_id = env.register_contract(None, EscrowContract);
     let client = EscrowContractClient::new(env, &contract_id);
 
@@ -17,7 +18,7 @@ fn setup_test(env: &Env) -> (EscrowContractClient<'static>, Address, Address, Ad
     let token_admin_client = token::StellarAssetClient::new(env, &token_contract.address());
 
     // Initialize contract with platform config
-    client.__init(&platform_wallet, &admin, &500);
+    client.initialize(&platform_wallet, &admin, &500);
 
     (client, buyer, seller, token_contract.address(), token_admin_client, platform_wallet)
 }
@@ -298,7 +299,7 @@ fn test_platform_fee_deduction_10_percent() {
     let token_admin_client = token::StellarAssetClient::new(&env, &token_contract.address());
     
     // Initialize with 10% fee
-    client.__init(&platform_wallet, &admin, &1000);
+    client.initialize(&platform_wallet, &admin, &1000);
     
     token_admin_client.mint(&buyer, &10000);
     client.create_escrow(&buyer, &seller, &token_contract.address(), &1000, &1, &None);
@@ -355,7 +356,7 @@ fn test_update_platform_fee() {
     let token_admin_client = token::StellarAssetClient::new(&env, &token_contract.address());
     
     // Initialize with 5% fee
-    client.__init(&platform_wallet, &admin, &500);
+    client.initialize(&platform_wallet, &admin, &500);
     
     // Get initial fee
     assert_eq!(client.get_platform_fee(), 500);
@@ -393,7 +394,7 @@ fn test_update_platform_fee_too_high() {
     let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
     
     // Initialize with 5% fee
-    client.__init(&platform_wallet, &admin, &500);
+    client.initialize(&platform_wallet, &admin, &500);
     
     // Try to set fee above max (10%)
     client.update_platform_fee(&1500);
