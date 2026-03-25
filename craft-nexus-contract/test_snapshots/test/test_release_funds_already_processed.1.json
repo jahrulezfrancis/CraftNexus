@@ -437,15 +437,35 @@
                         "symbol": "created_at"
                       },
                       "val": {
-                        "u64": 0
+                        "u32": 0
                       }
+                    },
+                    {
+                      "key": {
+                        "symbol": "id"
+                      },
+                      "val": {
+                        "u64": 1
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ipfs_hash"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "metadata_hash"
+                      },
+                      "val": "void"
                     },
                     {
                       "key": {
                         "symbol": "release_window"
                       },
                       "val": {
-                        "u64": 604800
+                        "u32": 604800
                       }
                     },
                     {
@@ -1523,6 +1543,18 @@
                 },
                 {
                   "key": {
+                    "symbol": "ipfs_hash"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
+                    "symbol": "metadata_hash"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
                     "symbol": "release_window"
                   },
                   "val": {
@@ -1593,15 +1625,35 @@
                     "symbol": "created_at"
                   },
                   "val": {
-                    "u64": 0
+                    "u32": 0
                   }
+                },
+                {
+                  "key": {
+                    "symbol": "id"
+                  },
+                  "val": {
+                    "u64": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "ipfs_hash"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
+                    "symbol": "metadata_hash"
+                  },
+                  "val": "void"
                 },
                 {
                   "key": {
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u64": 604800
+                    "u32": 604800
                   }
                 },
                 {
@@ -1944,16 +1996,21 @@
           "v0": {
             "topics": [
               {
-                "symbol": "log"
+                "symbol": "error"
+              },
+              {
+                "error": {
+                  "contract": 3
+                }
               }
             ],
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'Escrow already processed' from contract function 'Symbol(obj#455)'"
+                  "string": "failing with contract error"
                 },
                 {
-                  "u32": 1
+                  "u32": 3
                 }
               ]
             }
@@ -1975,7 +2032,32 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 3
+                }
+              }
+            ],
+            "data": {
+              "string": "escalating error to panic"
+            }
+          }
+        }
+      },
+      "failed_call": true
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "error"
+              },
+              {
+                "error": {
+                  "contract": 3
                 }
               }
             ],
@@ -2000,7 +2082,7 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 3
                 }
               }
             ],
@@ -2039,7 +2121,7 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 3
                 }
               }
             ],
