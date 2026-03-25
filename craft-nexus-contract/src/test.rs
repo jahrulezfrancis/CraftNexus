@@ -1026,3 +1026,227 @@ fn test_get_version_initially() {
     let (client, _, _, _, _, _, _) = setup_test(&env, true);
     assert_eq!(client.get_version(), 1);
 }
+
+// ============== Batch Operations Tests ==============
+
+#[test]
+fn test_create_batch_escrow_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    
+    // Mint enough tokens for multiple escrows
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    let escrow_params = vec![
+        &env,
+        EscrowCreateParams {
+            buyer: buyer.clone(),
+            seller: seller.clone(),
+            token: token_id.clone(),
+            amount: 100_000_000,
+            order_id: 100,
+            release_window: Some(3600),
+            ipfs_hash: None,
+            metadata_hash: None,
+        },
+        EscrowCreateParams {
+            buyer: buyer.clone(),
+            seller: seller.clone(),
+            token: token_id.clone(),
+            amount: 200_000_000,
+            order_id: 101,
+            release_window: Some(7200),
+            ipfs_hash: None,
+            metadata_hash: None,
+        },
+        EscrowCreateParams {
+            buyer: buyer.clone(),
+            seller: seller.clone(),
+            token: token_id.clone(),
+            amount: 150_000_000,
+            order_id: 102,
+            release_window: None, // Uses default
+            ipfs_hash: None,
+            metadata_hash: None,
+        },
+    ];
+    
+    let batch_id = 1u64;
+    let results = client.create_batch_escrow(&batch_id, &escrow_params);
+    
+    assert_eq!(results.len(), 3);
+    assert_eq!(results.get(0).unwrap(), 100);
+    assert_eq!(results.get(1).unwrap(), 101);
+    assert_eq!(results.get(2).unwrap(), 102);
+    
+    // Verify escrows were created
+    let escrow1 = client.get_escrow(&100);
+    assert_eq!(escrow1.amount, 100_000_000);
+    assert_eq!(escrow1.status, EscrowStatus::Active);
+    
+    let escrow2 = client.get_escrow(&101);
+    assert_eq!(escrow2.amount, 200_000_000);
+    assert_eq!(escrow2.status, EscrowStatus::Active);
+    
+    let escrow3 = client.get_escrow(&102);
+    assert_eq!(escrow3.amount, 150_000_000);
+    assert_eq!(escrow3.release_window, 604800); // Default 7 days
+    
+    // Verify events were emitted
+    let events = env.events().all();
+    let batch_events: Vec<_> = events.iter().filter(|(topics, _)| {
+        topics.len() >= 2 && topics[0] == Symbol::new(&env, "batch_escrow_created")
+    }).collect();
+    assert_eq!(batch_events.len(), 3, "Should emit batch event for each escrow");
+}
+
+#[test]
+#[should_panic(expected = "AmountBelowMinimum")]
+fn test_create_batch_escrow_fails_on_invalid_amount() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    // Create batch with invalid amount (zero)
+    let escrow_params = vec![
+        &env,
+        EscrowCreateParams {
+            buyer: buyer.clone(),
+            seller: seller.clone(),
+            token: token_id.clone(),
+            amount: 0, // Invalid - zero amount
+            order_id: 100,
+            release_window: Some(3600),
+            ipfs_hash: None,
+            metadata_hash: None,
+        },
+    ];
+    
+    client.create_batch_escrow(&1u64, &escrow_params);
+}
+
+#[test]
+#[should_panic(expected = "SameBuyerSeller")]
+fn test_create_batch_escrow_fails_same_buyer_seller() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, _, token_id, token_admin, _, _) = setup_test(&env, true);
+    
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    // Create batch where buyer equals seller
+    let escrow_params = vec![
+        &env,
+        EscrowCreateParams {
+            buyer: buyer.clone(),
+            seller: buyer.clone(), // Same as buyer!
+            token: token_id.clone(),
+            amount: 100,
+            order_id: 100,
+            release_window: Some(3600),
+            ipfs_hash: None,
+            metadata_hash: None,
+        },
+    ];
+    
+    client.create_batch_escrow(&1u64, &escrow_params);
+}
+
+#[test]
+fn test_release_batch_funds_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, platform_wallet, _) = setup_test(&env, true);
+    
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    // Create multiple escrows
+    client.create_escrow(&buyer, &seller, &token_id, &100_000_000, &100, &None);
+    client.create_escrow(&buyer, &seller, &token_id, &200_000_000, &101, &None);
+    client.create_escrow(&buyer, &seller, &token_id, &150_000_000, &102, &None);
+    
+    // Release batch
+    let order_ids = vec![&env, 100u32, 101u32, 102u32];
+    let batch_id = 1u64;
+    let results = client.release_batch_funds(&batch_id, &order_ids, &buyer);
+    
+    assert_eq!(results.len(), 3);
+    assert_eq!(results.get(0).unwrap(), 100);
+    assert_eq!(results.get(1).unwrap(), 101);
+    assert_eq!(results.get(2).unwrap(), 102);
+    
+    // Verify statuses
+    let escrow1 = client.get_escrow(&100);
+    assert_eq!(escrow1.status, EscrowStatus::Released);
+    
+    let escrow2 = client.get_escrow(&101);
+    assert_eq!(escrow2.status, EscrowStatus::Released);
+    
+    let escrow3 = client.get_escrow(&102);
+    assert_eq!(escrow3.status, EscrowStatus::Released);
+    
+    // Verify batch events were emitted
+    let events = env.events().all();
+    let batch_events: Vec<_> = events.iter().filter(|(topics, _)| {
+        topics.len() >= 2 && topics[0] == Symbol::new(&env, "batch_funds_released")
+    }).collect();
+    assert_eq!(batch_events.len(), 3, "Should emit batch event for each release");
+}
+
+#[test]
+#[should_panic(expected = "EscrowNotFound")]
+fn test_release_batch_funds_fails_escrow_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    // Create one escrow
+    client.create_escrow(&buyer, &seller, &token_id, &100, &100, &None);
+    
+    // Try to release batch with non-existent escrow
+    let order_ids = vec![&env, 100u32, 999u32]; // 999 doesn't exist
+    client.release_batch_funds(&1u64, &order_ids, &buyer);
+}
+
+#[test]
+#[should_panic(expected = "InvalidEscrowState")]
+fn test_release_batch_funds_fails_invalid_state() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    // Create escrow
+    client.create_escrow(&buyer, &seller, &token_id, &100, &100, &None);
+    
+    // Release it first
+    client.release_funds(&100);
+    
+    // Try to release again in batch
+    let order_ids = vec![&env, 100u32];
+    client.release_batch_funds(&1u64, &order_ids, &buyer);
+}
+
+#[test]
+#[should_panic(expected = "Unauthorized")]
+fn test_release_batch_funds_fails_unauthorized() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    
+    token_admin.mint(&buyer, &1_000_000_000);
+    
+    // Create escrow
+    client.create_escrow(&buyer, &seller, &token_id, &100, &100, &None);
+    
+    // Try to release with different address
+    let unauthorized = Address::generate(&env);
+    let order_ids = vec![&env, 100u32];
+    client.release_batch_funds(&1u64, &order_ids, &unauthorized);
+}
