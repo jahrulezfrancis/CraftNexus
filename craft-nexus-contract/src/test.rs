@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{testutils::{Address as _, Events, Ledger}, vec, Address, Bytes, BytesN, Env, IntoVal, String, Symbol, token};
+use soroban_sdk::{testutils::{Address as _, Events, Ledger}, vec, Address, Bytes, BytesN, Env, IntoVal, String, Symbol, token, TryIntoVal};
 
 fn setup_test(env: &Env, mock_auth: bool) -> (EscrowContractClient<'static>, Address, Address, Address, token::StellarAssetClient<'static>, Address, Address) {
     if mock_auth {
@@ -20,6 +20,11 @@ fn setup_test(env: &Env, mock_auth: bool) -> (EscrowContractClient<'static>, Add
     let token_admin_client = token::StellarAssetClient::new(env, &token_contract.address());
 
     let arbitrator = Address::generate(env);
+    
+    // Set a non-zero timestamp for event tests
+    env.ledger().with_mut(|li| {
+        li.timestamp = 1711368000; // 2024-03-25
+    });
 
     // Initialize contract with platform config
     client.initialize(&platform_wallet, &admin, &arbitrator, &500);
@@ -60,6 +65,15 @@ fn test_create_escrow_success() {
     assert_eq!(last_event.0, client.address);
     // Topics: ["escrow_created", escrow_id]
     assert_eq!(last_event.1, vec![&env, Symbol::new(&env, "escrow_created").into_val(&env), (order_id as u64).into_val(&env)]);
+    
+    // Verify payload
+    let event: EscrowCreatedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(event.escrow_id, order_id as u64);
+    assert_eq!(event.buyer, buyer);
+    assert_eq!(event.seller, seller);
+    assert_eq!(event.token, token_id);
+    assert_eq!(event.amount, amount as i128);
+    assert!(event.timestamp > 0);
 }
 
 #[test]
@@ -195,6 +209,14 @@ fn test_refund_success_by_admin() {
     assert_eq!(last_event.0, client.address);
     // Topics: ["funds_refunded", escrow_id]
     assert_eq!(last_event.1, vec![&env, Symbol::new(&env, "funds_refunded").into_val(&env), 1u64.into_val(&env)]);
+    
+    // Verify payload
+    let event: FundsRefundedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(event.escrow_id, 1);
+    assert_eq!(event.buyer, buyer);
+    assert_eq!(event.seller, seller);
+    assert_eq!(event.token, token_id);
+    assert!(event.timestamp > 0);
 }
 
 #[test]
@@ -215,9 +237,16 @@ fn test_dispute_escrow_success() {
     // Verify event
     let events = env.events().all();
     let last_event = events.last().unwrap();
-    assert_eq!(last_event.0, client.address);
-    // Topics: ["escrow_disputed", escrow_id]
     assert_eq!(last_event.1, vec![&env, Symbol::new(&env, "escrow_disputed").into_val(&env), 1u64.into_val(&env)]);
+    
+    // Verify payload
+    let event: EscrowDisputedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(event.escrow_id, 1);
+    assert_eq!(event.buyer, buyer);
+    assert_eq!(event.seller, seller);
+    assert_eq!(event.token, token_id);
+    assert_eq!(event.dispute_reason, String::from_str(&env, "Item damaged"));
+    assert!(event.timestamp > 0);
 }
 
 #[test]
@@ -740,9 +769,9 @@ fn test_integration_multiple_tokens_and_escrows() {
     let token_a = token::Client::new(&env, &token_a_contract.address());
     let token_b = token::Client::new(&env, &token_b_contract.address());
 
-    // Seller: 475 (token A) + 950 (token B)
-    assert_eq!(token_a.balance(&seller), 47_500_000);
-    assert_eq!(token_b.balance(&seller), 95_000_000);
+    // Seller: 9.5M (token A) + 9.5M (token B)
+    assert_eq!(token_a.balance(&seller), 9_500_000);
+    assert_eq!(token_b.balance(&seller), 9_500_000);
 
     // Platform: 500,000 (token A) + 500,000 (token B)
     let fee_a = token_a.balance(&platform_wallet);

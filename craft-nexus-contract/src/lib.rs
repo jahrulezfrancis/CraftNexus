@@ -107,6 +107,7 @@ pub struct EscrowCreatedEvent {
     pub amount: i128,
     pub token: Address,
     pub release_window: u32,
+    pub timestamp: u64,
     pub ipfs_hash: Option<String>,
     pub metadata_hash: Option<Bytes>,
 }
@@ -115,28 +116,46 @@ pub struct EscrowCreatedEvent {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FundsReleasedEvent {
     pub escrow_id: u64,
+    pub buyer: Address,
+    pub seller: Address,
     pub amount: i128,
+    pub token: Address,
+    pub timestamp: u64,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FundsRefundedEvent {
     pub escrow_id: u64,
+    pub buyer: Address,
+    pub seller: Address,
     pub amount: i128,
+    pub token: Address,
+    pub timestamp: u64,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowDisputedEvent {
     pub escrow_id: u64,
+    pub buyer: Address,
+    pub seller: Address,
+    pub amount: i128,
+    pub token: Address,
     pub dispute_reason: String,
+    pub timestamp: u64,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowResolvedEvent {
     pub escrow_id: u64,
+    pub buyer: Address,
+    pub seller: Address,
+    pub amount: i128,
+    pub token: Address,
     pub resolution: Resolution,
+    pub timestamp: u64,
 }
 
 #[contracttype]
@@ -212,6 +231,26 @@ impl EscrowContract {
             .persistent()
             .get(&ADMIN)
             .ok_or(Error::PlatformNotInitialized)
+    }
+
+    fn emit_escrow_created(env: &Env, event: EscrowCreatedEvent) {
+        env.events().publish((Symbol::new(env, "escrow_created"), event.escrow_id), event);
+    }
+
+    fn emit_funds_released(env: &Env, event: FundsReleasedEvent) {
+        env.events().publish((Symbol::new(env, "funds_released"), event.escrow_id), event);
+    }
+
+    fn emit_funds_refunded(env: &Env, event: FundsRefundedEvent) {
+        env.events().publish((Symbol::new(env, "funds_refunded"), event.escrow_id), event);
+    }
+
+    fn emit_escrow_disputed(env: &Env, event: EscrowDisputedEvent) {
+        env.events().publish((Symbol::new(env, "escrow_disputed"), event.escrow_id), event);
+    }
+
+    fn emit_escrow_resolved(env: &Env, event: EscrowResolvedEvent) {
+        env.events().publish((Symbol::new(env, "escrow_resolved"), event.escrow_id), event);
     }
 
     pub fn check_min_amount(env: &Env, token: Address, amount: i128) -> Result<(), Error> {
@@ -366,10 +405,11 @@ impl EscrowContract {
             amount,
             token: token.clone(),
             release_window: window,
+            timestamp: env.ledger().timestamp(),
             ipfs_hash,
             metadata_hash,
         };
-        env.events().publish((Symbol::new(&env, "escrow_created"), order_id as u64), event);
+        Self::emit_escrow_created(&env, event);
 
         escrow
     }
@@ -488,11 +528,15 @@ impl EscrowContract {
         // Transfer remaining funds to seller
         token_client.transfer(&env.current_contract_address(), &escrow.seller, &seller_amount);
 
-        env.events().publish(
-            (Symbol::new(&env, "funds_released"), order_id as u64),
+        Self::emit_funds_released(
+            &env,
             FundsReleasedEvent {
                 escrow_id: order_id as u64,
+                buyer: escrow.buyer.clone(),
+                seller: escrow.seller.clone(),
                 amount: escrow.amount,
+                token: escrow.token.clone(),
+                timestamp: env.ledger().timestamp(),
             },
         );
     }
@@ -551,11 +595,15 @@ impl EscrowContract {
         // Transfer remaining funds to seller
         token_client.transfer(&env.current_contract_address(), &escrow.seller, &seller_amount);
 
-        env.events().publish(
-            (Symbol::new(&env, "funds_released"), order_id as u64),
+        Self::emit_funds_released(
+            &env,
             FundsReleasedEvent {
                 escrow_id: order_id as u64,
+                buyer: escrow.buyer.clone(),
+                seller: escrow.seller.clone(),
                 amount: escrow.amount,
+                token: escrow.token.clone(),
+                timestamp: env.ledger().timestamp(),
             },
         );
     }
@@ -618,11 +666,15 @@ impl EscrowContract {
         let client = token::Client::new(&env, &escrow.token);
         client.transfer(&env.current_contract_address(), &escrow.buyer, &escrow.amount);
         
-        env.events().publish(
-            (Symbol::new(&env, "funds_refunded"), escrow_id),
+        Self::emit_funds_refunded(
+            &env,
             FundsRefundedEvent {
                 escrow_id,
+                buyer: escrow.buyer.clone(),
+                seller: escrow.seller.clone(),
                 amount: escrow.amount,
+                token: escrow.token.clone(),
+                timestamp: env.ledger().timestamp(),
             },
         );
         Ok(())
@@ -725,11 +777,16 @@ impl EscrowContract {
             .persistent()
             .set(&(ESCROW, order_id), &escrow);
 
-        env.events().publish(
-            (Symbol::new(&env, "escrow_disputed"), order_id as u64),
+        Self::emit_escrow_disputed(
+            &env,
             EscrowDisputedEvent {
                 escrow_id: order_id as u64,
+                buyer: escrow.buyer.clone(),
+                seller: escrow.seller.clone(),
+                amount: escrow.amount,
+                token: escrow.token.clone(),
                 dispute_reason,
+                timestamp: env.ledger().timestamp(),
             },
         );
     }
@@ -759,11 +816,16 @@ impl EscrowContract {
         escrow.status = EscrowStatus::Resolved;
         env.storage().persistent().set(&(ESCROW, order_id), &escrow);
 
-        env.events().publish(
-            (Symbol::new(&env, "escrow_resolved"), order_id as u64),
+        Self::emit_escrow_resolved(
+            &env,
             EscrowResolvedEvent {
                 escrow_id: order_id as u64,
+                buyer: escrow.buyer.clone(),
+                seller: escrow.seller.clone(),
+                amount: escrow.amount,
+                token: escrow.token.clone(),
                 resolution,
+                timestamp: env.ledger().timestamp(),
             },
         );
     }
