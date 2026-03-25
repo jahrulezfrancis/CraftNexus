@@ -42,7 +42,7 @@ fn test_create_escrow_success() {
     assert_eq!(escrow.buyer, buyer);
     assert_eq!(escrow.seller, seller);
     assert_eq!(escrow.amount, amount);
-    assert_eq!(escrow.status, EscrowStatus::Pending);
+    assert_eq!(escrow.status, EscrowStatus::Active);
     assert_eq!(escrow.release_window, window);
     
     let stored_escrow = client.get_escrow(&order_id);
@@ -197,10 +197,11 @@ fn test_dispute_escrow_success() {
     token_admin.mint(&buyer, &1000);
     client.create_escrow(&buyer, &seller, &token_id, &500, &1, &None);
     
-    client.dispute_escrow(&1, &buyer);
+    client.dispute_escrow(&1, &String::from("Item damaged"), &buyer);
     
     let escrow = client.get_escrow(&1);
     assert_eq!(escrow.status, EscrowStatus::Disputed);
+    assert_eq!(escrow.dispute_reason, Some(String::from("Item damaged")));
 
     // Verify event
     let events = env.events().all();
@@ -211,6 +212,55 @@ fn test_dispute_escrow_success() {
 }
 
 #[test]
+fn test_dispute_escrow_by_seller() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _) = setup_test(&env);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &500, &1, &None);
+
+    client.dispute_escrow(&1, &String::from("Payment not received"), &seller);
+
+    let escrow = client.get_escrow(&1);
+    assert_eq!(escrow.status, EscrowStatus::Disputed);
+    assert_eq!(escrow.dispute_reason, Some(String::from("Payment not received")));
+}
+
+#[test]
+fn test_dispute_escrow_unauthorized() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _) = setup_test(&env);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &500, &1, &None);
+
+    let unauthorized = Address::generate(&env);
+    let result = std::panic::catch_unwind(|| {
+        client.dispute_escrow(&1, &String::from("Invalid reason"), &unauthorized);
+    });
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_disputed_prevents_release_and_refund() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _) = setup_test(&env);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &500, &1, &None);
+    client.dispute_escrow(&1, &String::from("Damaged item"), &buyer);
+
+    let release_err = std::panic::catch_unwind(|| { client.release_funds(&1); });
+    assert!(release_err.is_err());
+
+    let refund_err = std::panic::catch_unwind(|| { client.refund(&1, &buyer); });
+    assert!(refund_err.is_err());
+}
+
+#[test]
 fn test_resolve_dispute_release_to_seller() {
     let env = Env::default();
     env.mock_all_auths();
@@ -218,7 +268,7 @@ fn test_resolve_dispute_release_to_seller() {
 
     token_admin.mint(&buyer, &1000);
     client.create_escrow(&buyer, &seller, &token_id, &500, &1, &None);
-    client.dispute_escrow(&1, &buyer);
+    client.dispute_escrow(&1, &String::from("Non-delivery"), &buyer);
 
     // Arbitrator is setup in setup_test as a random Address and mock_all_auths bypasses auth
     client.resolve_dispute(&1, &Resolution::ReleaseToSeller);
@@ -242,7 +292,7 @@ fn test_resolve_dispute_refund_to_buyer() {
 
     token_admin.mint(&buyer, &1000);
     client.create_escrow(&buyer, &seller, &token_id, &500, &1, &None);
-    client.dispute_escrow(&1, &buyer);
+    client.dispute_escrow(&1, &String::from("Late shipping"), &buyer);
 
     client.resolve_dispute(&1, &Resolution::RefundToBuyer);
 
