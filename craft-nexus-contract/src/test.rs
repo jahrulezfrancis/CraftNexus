@@ -237,7 +237,7 @@ fn test_auto_release_failure_before_window() {
 fn test_refund_success_by_admin() {
     let env = Env::default();
     env.mock_all_auths();
-    let (client, buyer, seller, token_id, token_admin, _, admin) = setup_test(&env, true);
+    let (client, buyer, seller, token_id, token_admin, _, _admin) = setup_test(&env, false);
 
     token_admin.mint(&buyer, &100_000_000);
     client.create_escrow(&buyer, &seller, &token_id, &50_000_000, &1, &None);
@@ -701,7 +701,7 @@ fn test_dispute_escrow_failure_unauthorized() {
     token_admin.mint(&buyer, &100_000_000);
     client.create_escrow(&buyer, &seller, &token_id, &50_000_000, &1, &None);
 
-    let unauthorized = Address::generate(&env);
+    let _unauthorized = Address::generate(&env);
     let unauthorized = Address::generate(&env);
     client.dispute_escrow(&1, &String::from_str(&env, "Unauthorized"), &unauthorized);
 }
@@ -1382,4 +1382,40 @@ fn test_release_batch_funds_fails_unauthorized() {
     let unauthorized = Address::generate(&env);
     let order_ids = vec![&env, 100u32];
     client.release_batch_funds(&1u64, &order_ids, &unauthorized);
+}
+
+#[test]
+fn test_reentrancy_guard_prevents_recursive_call() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    token_admin.mint(&buyer, &100_000_000);
+    client.create_escrow(&buyer, &seller, &token_id, &50_000_000, &1, &None);
+
+    // Manually set the guard in temporary storage
+    env.as_contract(&client.address, || {
+        env.storage().temporary().set(&DataKey::ReentryGuard, &true);
+    });
+
+    // Attempting to call a guarded function should now fail
+    let result = client.try_release_funds(&1);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_reentrancy_guard_cleared_after_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &100_000_000);
+    client.create_escrow(&buyer, &seller, &token_id, &50_000_000, &1, &None);
+
+    // This should succeed and clear the guard
+    client.release_funds(&1);
+
+    // The guard should be gone
+    env.as_contract(&client.address, || {
+        assert!(!env.storage().temporary().has(&DataKey::ReentryGuard));
+    });
 }
