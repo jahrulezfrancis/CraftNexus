@@ -91,7 +91,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 100000000
+                    "lo": 1000
                   }
                 }
               ]
@@ -128,9 +128,7 @@
                 {
                   "u32": 1
                 },
-                {
-                  "u32": 3600
-                }
+                "void"
               ]
             }
           },
@@ -159,6 +157,31 @@
               "sub_invocations": []
             }
           ]
+        }
+      ]
+    ],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "dispute_escrow",
+              "args": [
+                {
+                  "u32": 1
+                },
+                {
+                  "string": "Payment not received"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
         }
       ]
     ],
@@ -551,7 +574,9 @@
                       "key": {
                         "symbol": "dispute_reason"
                       },
-                      "val": "void"
+                      "val": {
+                        "string": "Payment not received"
+                      }
                     },
                     {
                       "key": {
@@ -578,7 +603,7 @@
                         "symbol": "release_window"
                       },
                       "val": {
-                        "u32": 3600
+                        "u32": 604800
                       }
                     },
                     {
@@ -594,7 +619,7 @@
                         "symbol": "status"
                       },
                       "val": {
-                        "u32": 0
+                        "u32": 3
                       }
                     },
                     {
@@ -765,6 +790,39 @@
                 "key": {
                   "ledger_key_nonce": {
                     "nonce": 2032731177588607455
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 4270020994084947596
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 4270020994084947596
                   }
                 },
                 "durability": "temporary",
@@ -992,7 +1050,7 @@
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 99999500
+                          "lo": 500
                         }
                       }
                     },
@@ -1420,7 +1478,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 100000000
+                    "lo": 1000
                   }
                 }
               ]
@@ -1454,7 +1512,7 @@
             "data": {
               "i128": {
                 "hi": 0,
-                "lo": 100000000
+                "lo": 1000
               }
             }
           }
@@ -1521,9 +1579,7 @@
                 {
                   "u32": 1
                 },
-                {
-                  "u32": 3600
-                }
+                "void"
               ]
             }
           }
@@ -1684,7 +1740,7 @@
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u32": 3600
+                    "u32": 604800
                   }
                 },
                 {
@@ -1793,7 +1849,7 @@
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u32": 3600
+                    "u32": 604800
                   }
                 },
                 {
@@ -1822,6 +1878,146 @@
                 }
               ]
             }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
+              },
+              {
+                "symbol": "dispute_escrow"
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "u32": 1
+                },
+                {
+                  "string": "Payment not received"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "escrow_disputed"
+              },
+              {
+                "u64": 1
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "amount"
+                  },
+                  "val": {
+                    "i128": {
+                      "hi": 0,
+                      "lo": 500
+                    }
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "buyer"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "dispute_reason"
+                  },
+                  "val": {
+                    "string": "Payment not received"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "escrow_id"
+                  },
+                  "val": {
+                    "u64": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "seller"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "timestamp"
+                  },
+                  "val": {
+                    "u64": 1711368000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "token"
+                  },
+                  "val": {
+                    "address": "CDS3FDGQ4JA2V3F26Y4BMWWJEC5TT26RJBN7KIQKUMVO2MAOCMDTSZ7A"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "dispute_escrow"
+              }
+            ],
+            "data": "void"
           }
         }
       },
@@ -1901,7 +2097,9 @@
                   "key": {
                     "symbol": "dispute_reason"
                   },
-                  "val": "void"
+                  "val": {
+                    "string": "Payment not received"
+                  }
                 },
                 {
                   "key": {
@@ -1928,7 +2126,7 @@
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u32": 3600
+                    "u32": 604800
                   }
                 },
                 {
@@ -1944,7 +2142,7 @@
                     "symbol": "status"
                   },
                   "val": {
-                    "u32": 0
+                    "u32": 3
                   }
                 },
                 {

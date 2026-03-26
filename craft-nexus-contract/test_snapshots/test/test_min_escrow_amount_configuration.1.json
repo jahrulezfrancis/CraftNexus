@@ -91,7 +91,32 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 100000000
+                    "lo": 10000000
+                  }
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "set_min_escrow_amount",
+              "args": [
+                {
+                  "address": "CDS3FDGQ4JA2V3F26Y4BMWWJEC5TT26RJBN7KIQKUMVO2MAOCMDTSZ7A"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 100000
                   }
                 }
               ]
@@ -122,15 +147,13 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 500
+                    "lo": 5000000
                   }
                 },
                 {
                   "u32": 1
                 },
-                {
-                  "u32": 3600
-                }
+                "void"
               ]
             }
           },
@@ -150,7 +173,7 @@
                     {
                       "i128": {
                         "hi": 0,
-                        "lo": 500
+                        "lo": 5000000
                       }
                     }
                   ]
@@ -527,7 +550,7 @@
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 500
+                          "lo": 5000000
                         }
                       }
                     },
@@ -578,7 +601,7 @@
                         "symbol": "release_window"
                       },
                       "val": {
-                        "u32": 3600
+                        "u32": 604800
                       }
                     },
                     {
@@ -652,7 +675,7 @@
                 "val": {
                   "i128": {
                     "hi": 0,
-                    "lo": 0
+                    "lo": 100000
                   }
                 }
               }
@@ -749,7 +772,7 @@
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
             "key": {
               "ledger_key_nonce": {
-                "nonce": 2032731177588607455
+                "nonce": 4270020994084947596
               }
             },
             "durability": "temporary"
@@ -764,7 +787,7 @@
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
                 "key": {
                   "ledger_key_nonce": {
-                    "nonce": 2032731177588607455
+                    "nonce": 4270020994084947596
                   }
                 },
                 "durability": "temporary",
@@ -798,6 +821,39 @@
                 "key": {
                   "ledger_key_nonce": {
                     "nonce": 1033654523790656264
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 2032731177588607455
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 2032731177588607455
                   }
                 },
                 "durability": "temporary",
@@ -919,7 +975,7 @@
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 500
+                          "lo": 5000000
                         }
                       }
                     },
@@ -992,7 +1048,7 @@
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 99999500
+                          "lo": 5000000
                         }
                       }
                     },
@@ -1420,7 +1476,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 100000000
+                    "lo": 10000000
                   }
                 }
               ]
@@ -1454,7 +1510,7 @@
             "data": {
               "i128": {
                 "hi": 0,
-                "lo": 100000000
+                "lo": 10000000
               }
             }
           }
@@ -1498,6 +1554,63 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
               },
               {
+                "symbol": "set_min_escrow_amount"
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "address": "CDS3FDGQ4JA2V3F26Y4BMWWJEC5TT26RJBN7KIQKUMVO2MAOCMDTSZ7A"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 100000
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "set_min_escrow_amount"
+              }
+            ],
+            "data": "void"
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
+              },
+              {
                 "symbol": "create_escrow"
               }
             ],
@@ -1515,15 +1628,13 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 500
+                    "lo": 5000000
                   }
                 },
                 {
                   "u32": 1
                 },
-                {
-                  "u32": 3600
-                }
+                "void"
               ]
             }
           }
@@ -1560,7 +1671,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 500
+                    "lo": 5000000
                   }
                 }
               ]
@@ -1594,7 +1705,7 @@
             "data": {
               "i128": {
                 "hi": 0,
-                "lo": 500
+                "lo": 5000000
               }
             }
           }
@@ -1647,7 +1758,7 @@
                   "val": {
                     "i128": {
                       "hi": 0,
-                      "lo": 500
+                      "lo": 5000000
                     }
                   }
                 },
@@ -1684,7 +1795,7 @@
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u32": 3600
+                    "u32": 604800
                   }
                 },
                 {
@@ -1742,7 +1853,7 @@
                   "val": {
                     "i128": {
                       "hi": 0,
-                      "lo": 500
+                      "lo": 5000000
                     }
                   }
                 },
@@ -1793,7 +1904,7 @@
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u32": 3600
+                    "u32": 604800
                   }
                 },
                 {
@@ -1877,7 +1988,7 @@
                   "val": {
                     "i128": {
                       "hi": 0,
-                      "lo": 500
+                      "lo": 5000000
                     }
                   }
                 },
@@ -1928,7 +2039,7 @@
                     "symbol": "release_window"
                   },
                   "val": {
-                    "u32": 3600
+                    "u32": 604800
                   }
                 },
                 {

@@ -1,51 +1,85 @@
-
 "use client";
 import { useState } from "react";
 import { FaBars, FaTimes } from "react-icons/fa";
+import Sidebar from "@/components/market/Sidebar";
+import CourseCard from "@/components/market/CourseCard";
 
-type MarketSection = "courses" | "workshops" | "tools" | "materials";
+interface Course {
+  title: string;
+  author: string;
+  description: string;
+  students: number;
+  rating: number;
+  duration: string;
+  price: string;
+}
 
-const sections = [
-  { id: "courses" as MarketSection, label: "Courses", description: "Browse available courses" },
-  { id: "workshops" as MarketSection, label: "Workshops", description: "Join interactive workshops" },
-  { id: "tools" as MarketSection, label: "Tools", description: "Find essential crafting tools" },
-  { id: "materials" as MarketSection, label: "Materials", description: "Shop for crafting materials" },
+const courses: Course[] = [
+  {
+    title: "Introduction to Pottery",
+    author: "Sarah Mitchell",
+    description: "Learn the fundamentals of wheel throwing and hand-building techniques.",
+    students: 250,
+    rating: 4.8,
+    duration: "40 Hours",
+    price: "Enroll for 2.99 USDC",
+  },
+  {
+    title: "Modern Tufting Masterclass",
+    author: "James Cooper",
+    description: "Create stunning tufted rugs and wall art with professional techniques.",
+    students: 180,
+    rating: 4.9,
+    duration: "25 Hours",
+    price: "Enroll for 3.99 USDC",
+  },
+  {
+    title: "Crochet for Beginners",
+    author: "Emily Watson",
+    description: "Start your crocheting journey with basic stitches and patterns.",
+    students: 420,
+    rating: 4.7,
+    duration: "15 Hours",
+    price: "Enroll for 1.99 USDC",
+  },
+  {
+    title: "Advanced Sewing Techniques",
+    author: "Michael Brooks",
+    description: "Master complex sewing projects with professional finishing touches.",
+    students: 165,
+    rating: 4.6,
+    duration: "35 Hours",
+    price: "Enroll for 4.99 USDC",
+  },
+  {
+    title: "Watercolor Painting Basics",
+    author: "Lisa Anderson",
+    description: "Discover beautiful watercolor techniques for stunning artwork.",
+    students: 310,
+    rating: 4.8,
+    duration: "20 Hours",
+    price: "Enroll for 2.49 USDC",
+  },
+  {
+    title: " charcoal Drawing Fundamentals",
+    author: "David Kim",
+    description: "Build strong drawing skills with traditional charcoal techniques.",
+    students: 195,
+    rating: 4.5,
+    duration: "18 Hours",
+    price: "Enroll for 1.99 USDC",
+  },
 ];
 
-const sectionContent = {
-  courses: {
-    title: "Courses",
-    content: "Explore our comprehensive collection of crafting courses. From beginner to advanced levels, find the perfect course to enhance your skills."
-  },
-  workshops: {
-    title: "Workshops",
-    content: "Join live interactive workshops led by expert craftsmen. Learn hands-on techniques and get real-time feedback from instructors."
-  },
-  tools: {
-    title: "Tools",
-    content: "Discover high-quality crafting tools from trusted manufacturers. Find everything you need for your next project."
-  },
-  materials: {
-    title: "Materials",
-    content: "Shop our curated selection of premium crafting materials. From fabrics to metals, we have everything you need."
-  }
-};
-
-export default function Market() {
-  const [activeSection, setActiveSection] = useState<MarketSection>("courses");
+export default function MarketPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const selectSection = (section: MarketSection) => {
-    setActiveSection(section);
-    setIsSidebarOpen(false); // Close sidebar on mobile after selection
-  };
-
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Mobile Sidebar Toggle */}
       <div className="md:hidden fixed top-4 left-4 z-50">
         <button
@@ -60,63 +94,57 @@ export default function Market() {
         </button>
       </div>
 
-      {/* Sidebar */}
-      <div className={`
-        fixed md:relative top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:shadow-none
-      `}>
-        <div className="p-6 pt-16 md:pt-6">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Market</h2>
-          <nav className="space-y-2">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => selectSection(section.id)}
-                className={`w-full text-left p-3 rounded-lg transition-colors duration-200 ${
-                  activeSection === section.id
-                    ? "bg-blue-100 text-blue-700 font-semibold"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <div className="font-medium">{section.label}</div>
-                <div className="text-sm text-gray-500 mt-1">{section.description}</div>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
-
-      {/* Overlay for mobile */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
       {/* Main Content */}
-      <div className="flex-1 ml-0 md:ml-64 p-6 pt-16 md:pt-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">
-              {sectionContent[activeSection].title}
-            </h1>
-            <p className="text-gray-600 text-lg leading-relaxed">
-              {sectionContent[activeSection].content}
-            </p>
+      <div className="flex flex-col md:flex-row">
+        {/* Sidebar */}
+        <div className={`
+          fixed md:relative top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0 md:shadow-none md:h-auto
+        `}>
+          <div className="pt-16 md:pt-0">
+            <Sidebar />
+          </div>
+        </div>
 
-            {/* Placeholder for section-specific content */}
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Sample cards - replace with actual content */}
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="bg-gray-50 p-4 rounded-lg border">
-                  <div className="h-32 bg-gray-200 rounded mb-3"></div>
-                  <h3 className="font-semibold text-gray-800">Item {item}</h3>
-                  <p className="text-gray-600 text-sm">Description for item {item}</p>
-                </div>
-              ))}
-            </div>
+        {/* Overlay for mobile */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Course Grid Area */}
+        <div className="flex-1 p-4 md:p-6 pt-16 md:pt-6">
+          {/* Top Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+              Online Handcraft Courses
+            </h1>
+            <select className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option>Sort by Popular</option>
+              <option>Sort by Newest</option>
+              <option>Sort by Price: Low to High</option>
+              <option>Sort by Price: High to Low</option>
+              <option>Sort by Rating</option>
+            </select>
+          </div>
+
+          {/* Course Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course, index) => (
+              <CourseCard
+                key={index}
+                title={course.title}
+                author={course.author}
+                description={course.description}
+                students={course.students}
+                rating={course.rating}
+                duration={course.duration}
+                price={course.price}
+              />
+            ))}
           </div>
         </div>
       </div>

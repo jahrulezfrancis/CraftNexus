@@ -134,10 +134,8 @@ fn test_onboard_username_too_long() {
 
     let user = Address::generate(&env);
     // 51 character username (max is 50)
-    let long_username = String::from_str(
-        &env,
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    );
+    let long_username =
+        String::from_str(&env, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
     client.onboard_user(&user, &long_username, &UserRole::Buyer); // Should panic
 }
@@ -185,17 +183,10 @@ fn test_onboard_duplicate_username_case_insensitive() {
     let user1 = Address::generate(&env);
     let user2 = Address::generate(&env);
 
-    client.onboard_user(
-        &user1,
-        &String::from_str(&env, "Alice"),
-        &UserRole::Buyer,
-    );
+    client.onboard_user(&user1, &String::from_str(&env, "Alice"), &UserRole::Buyer);
     // "alice" should match "Alice" after normalization
-    client.onboard_user(
-        &user2,
-        &String::from_str(&env, "alice"),
-        &UserRole::Artisan,
-    ); // Should panic
+    client.onboard_user(&user2, &String::from_str(&env, "alice"), &UserRole::Artisan);
+    // Should panic
 }
 
 #[test]
@@ -248,11 +239,7 @@ fn test_get_user_by_username_case_insensitive() {
     let (client, _) = setup_test(&env);
 
     let user = Address::generate(&env);
-    client.onboard_user(
-        &user,
-        &String::from_str(&env, "john_doe"),
-        &UserRole::Buyer,
-    );
+    client.onboard_user(&user, &String::from_str(&env, "john_doe"), &UserRole::Buyer);
 
     // Should find user regardless of case
     let profile = client.get_user_by_username(&String::from_str(&env, "JOHN_DOE"));
@@ -368,7 +355,10 @@ fn test_get_user_role() {
 
     assert_eq!(client.get_user_role(&buyer), UserRole::Buyer);
     assert_eq!(client.get_user_role(&artisan), UserRole::Artisan);
-    assert_eq!(client.get_user_role(&Address::generate(&env)), UserRole::None);
+    assert_eq!(
+        client.get_user_role(&Address::generate(&env)),
+        UserRole::None
+    );
 }
 
 #[test]
