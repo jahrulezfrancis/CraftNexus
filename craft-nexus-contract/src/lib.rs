@@ -297,12 +297,6 @@ pub struct PartialRefundProposal {
     pub proposed_at: u64,
 }
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct WasmUpgradeProposal {
-    pub wasm_hash: BytesN<32>,
-    pub upgrade_at: u64,
-}
 
 #[contract]
 pub struct EscrowContract;
@@ -655,7 +649,7 @@ impl EscrowContract {
         };
 
         env.storage().persistent().set(&(ESCROW, order_id), &escrow);
-        Self::extend_persistent(env, &(ESCROW, order_id));
+        Self::extend_persistent(&env, &(ESCROW, order_id));
 
         // Update buyer's escrow list for indexing
         let buyer_key = DataKey::BuyerEscrows(buyer.clone());
@@ -666,7 +660,7 @@ impl EscrowContract {
             .unwrap_or(soroban_sdk::Vec::new(&env));
         buyer_escrows.push_back(order_id as u64);
         env.storage().persistent().set(&buyer_key, &buyer_escrows);
-        Self::extend_persistent(env, &buyer_key);
+        Self::extend_persistent(&env, &buyer_key);
 
         // Update seller's escrow list for indexing
         let seller_key = DataKey::SellerEscrows(seller.clone());
@@ -677,7 +671,7 @@ impl EscrowContract {
             .unwrap_or(soroban_sdk::Vec::new(&env));
         seller_escrows.push_back(order_id as u64);
         env.storage().persistent().set(&seller_key, &seller_escrows);
-        Self::extend_persistent(env, &seller_key);
+        Self::extend_persistent(&env, &seller_key);
 
         // Transfer funds from buyer to contract
         let client = token::Client::new(&env, &token);
@@ -1314,10 +1308,6 @@ impl EscrowContract {
         Self::extend_persistent(&env, &PLATFORM_FEE);
     }
 
-    fn get_admin(env: &Env) -> Result<Address, Error> {
-        let config = Self::get_platform_config(env);
-        Ok(config.admin)
-    }
 
     /// Set the minimum escrow amount for a specific token (admin only)
     ///
@@ -1439,7 +1429,7 @@ impl EscrowContract {
         env.storage()
             .persistent()
             .set(&(ESCROW, params.order_id), &escrow);
-        Self::extend_persistent(env, &(ESCROW, order_id as u32));
+        Self::extend_persistent(&env, &(ESCROW, params.order_id));
 
         // Update buyer's escrow list for indexing
         let buyer_key = DataKey::BuyerEscrows(params.buyer.clone());
@@ -1458,13 +1448,13 @@ impl EscrowContract {
             .storage()
             .persistent()
             .get(&seller_key)
-            .unwrap_or(soroban_sdk::Vec::new(env));
+            .unwrap_or(soroban_sdk::Vec::new(&env));
         seller_escrows.push_back(params.order_id as u64);
         env.storage().persistent().set(&seller_key, &seller_escrows);
-        Self::extend_persistent(env, &seller_key);
+        Self::extend_persistent(&env, &seller_key);
 
         // Transfer funds from buyer to contract
-        let client = token::Client::new(env, &params.token);
+        let client = token::Client::new(&env, &params.token);
         client.transfer(
             &params.buyer,
             &env.current_contract_address(),
@@ -1483,7 +1473,7 @@ impl EscrowContract {
             ipfs_hash: params.ipfs_hash,
             metadata_hash: params.metadata_hash,
         };
-        Self::emit_escrow_created(env, event);
+        Self::emit_escrow_created(&env, event);
 
         Ok(params.order_id as u64)
     }
