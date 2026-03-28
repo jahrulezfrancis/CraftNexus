@@ -548,6 +548,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "max_dispute_duration"
+                      },
+                      "val": {
+                        "u32": 2592000
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "min_stake_required"
                       },
                       "val": {
@@ -583,6 +591,22 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "stake_cooldown"
+                      },
+                      "val": {
+                        "u32": 604800
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "wasm_upgrade_cooldown"
+                      },
+                      "val": {
+                        "u32": 604800
                       }
                     }
                   ]
@@ -1234,45 +1258,6 @@
             "ext": "v0"
           },
           518400
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "ReentryGuard"
-                }
-              ]
-            },
-            "durability": "temporary"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "ReentryGuard"
-                    }
-                  ]
-                },
-                "durability": "temporary",
-                "val": {
-                  "bool": true
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          15
         ]
       ],
       [

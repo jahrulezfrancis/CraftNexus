@@ -954,23 +954,27 @@ impl OnboardingContract {
         env.storage().persistent().set(&profile_key, &profile);
         Self::extend_persistent(&env, &profile_key);
 
-        // Remove from queue
+        // Remove from queue - optimized to avoid full vector rebuild
         let queue_key = DataKey::VerificationQueue;
-        let queue: Vec<Address> = env
+        let mut queue: Vec<Address> = env
             .storage()
             .persistent()
             .get(&queue_key)
             .unwrap_or(Vec::new(&env));
-        let mut new_queue: Vec<Address> = Vec::new(&env);
-        for i in 0..queue.len() {
-            if let Some(addr) = queue.get(i) {
-                if addr != user {
-                    new_queue.push_back(addr);
+        
+        // Find and remove the user in a single pass
+        if let Some(index) = (0..queue.len()).find(|&i| queue.get(i) == Some(user.clone())) {
+            // Swap with last element and pop (O(1) removal)
+            let last_idx = queue.len() - 1;
+            if index != last_idx {
+                if let Some(last_addr) = queue.get(last_idx) {
+                    queue.set(index, last_addr);
                 }
             }
+            queue.pop_back();
+            env.storage().persistent().set(&queue_key, &queue);
+            Self::extend_persistent(&env, &queue_key);
         }
-        env.storage().persistent().set(&queue_key, &new_queue);
-        Self::extend_persistent(&env, &queue_key);
 
         // Append to history
         let action = if approve { "approved" } else { "rejected" };
