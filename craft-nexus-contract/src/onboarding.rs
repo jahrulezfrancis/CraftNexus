@@ -7,6 +7,10 @@ const TTL_THRESHOLD: u32 = 10_000;
 const TTL_EXTENSION: u32 = 518_400;
 const CURRENT_USER_PROFILE_VERSION: u32 = 2;
 
+/// Cooldown period for username changes to prevent squatting and rapid identity rotation.
+/// 30 days in seconds.
+const USERNAME_CHANGE_COOLDOWN: u64 = 30 * 24 * 60 * 60;
+
 #[cfg(test)]
 #[path = "onboarding_test.rs"]
 mod onboarding_test;
@@ -1156,6 +1160,19 @@ impl OnboardingContract {
             username_len <= config.max_username_length,
             "Username too long"
         );
+
+        // Enforce cooldown between username changes for the same user.
+        if let Some(last_change) = env
+            .storage()
+            .persistent()
+            .get::<DataKey, u64>(&DataKey::LastUsernameChange(user.clone()))
+        {
+            let current_time = env.ledger().timestamp();
+            assert!(
+                current_time > last_change.saturating_add(USERNAME_CHANGE_COOLDOWN),
+                "Username change cooldown active"
+            );
+        }
 
         // Check if new username is already taken
         assert!(

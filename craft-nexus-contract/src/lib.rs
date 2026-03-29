@@ -69,7 +69,6 @@ const ESCROW: Symbol = symbol_short!("ESCROW");
 const PLATFORM_FEE: Symbol = symbol_short!("PLAT_FEE");
 const PLATFORM_WALLET: Symbol = symbol_short!("PLAT_WAL");
 const TOTAL_FEES: Symbol = symbol_short!("TOT_FEES");
-const ADMIN: Symbol = symbol_short!("ADMIN");
 
 /// Standard TTL threshold for persistent storage (approx 14 hours at 5s ledger)
 const TTL_THRESHOLD: u32 = 10_000;
@@ -473,10 +472,13 @@ impl EscrowContract {
     }
 
     fn get_admin(env: &Env) -> Result<Address, Error> {
-        env.storage()
+        let config: PlatformConfig = env
+            .storage()
             .persistent()
-            .get(&ADMIN)
-            .ok_or(Error::PlatformNotInitialized)
+            .get(&PLATFORM_FEE)
+            .ok_or(Error::PlatformNotInitialized)?;
+        Self::extend_persistent(env, &PLATFORM_FEE);
+        Ok(config.admin)
     }
 
     fn emit_escrow_created(env: &Env, event: EscrowCreatedEvent) {
@@ -745,9 +747,6 @@ impl EscrowContract {
             .set(&PLATFORM_WALLET, &platform_wallet);
         Self::extend_persistent(&env, &PLATFORM_WALLET);
 
-        env.storage().persistent().set(&ADMIN, &admin);
-        Self::extend_persistent(&env, &ADMIN);
-
         // Initialize total fees to 0
         let zero: i128 = 0;
         env.storage().persistent().set(&TOTAL_FEES, &zero);
@@ -797,8 +796,6 @@ impl EscrowContract {
         env.storage().persistent().set(&PLATFORM_FEE, &config);
         Self::extend_persistent(&env, &PLATFORM_FEE);
 
-        env.storage().persistent().set(&ADMIN, &config.admin);
-        Self::extend_persistent(&env, &ADMIN);
     }
     /// Create a new escrow for an order
     ///

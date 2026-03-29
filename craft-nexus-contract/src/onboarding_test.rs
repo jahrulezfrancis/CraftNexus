@@ -820,6 +820,22 @@ fn test_change_username_success() {
 }
 
 #[test]
+#[should_panic(expected = "Username change cooldown active")]
+fn test_change_username_cooldown_active() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _) = setup_test(&env);
+    let user = Address::generate(&env);
+
+    client.onboard_user(&user, &String::from_str(&env, "original_user"), &UserRole::Buyer);
+    client.change_username(&user, &String::from_str(&env, "first_change"));
+
+    // Immediate second change should be blocked by cooldown.
+    client.change_username(&user, &String::from_str(&env, "second_change"));
+}
+
+#[test]
 fn test_change_username_case_insensitive() {
     let env = Env::default();
     env.mock_all_auths();
