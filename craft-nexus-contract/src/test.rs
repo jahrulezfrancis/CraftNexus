@@ -49,7 +49,7 @@ fn setup_test(
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     // Set min amount to 0 for tests to pass with small amounts
     client.set_min_escrow_amount(&token_contract.address(), &0);
@@ -656,7 +656,7 @@ fn test_update_platform_fee() {
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     // Get initial fee
     assert_eq!(client.get_platform_fee(), 500);
@@ -720,7 +720,7 @@ fn test_update_platform_fee_too_high() {
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     // Try to set fee above max (10%)
     client.update_platform_fee(&1500);
@@ -764,7 +764,7 @@ fn test_initialize_emits_config_events() {
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     let events = env.events().all();
     let fee_event: ConfigUpdatedEvent = events
@@ -2710,3 +2710,98 @@ fn test_get_escrow_count_batch_creation() {
     let ids = client.get_all_escrow_ids_iterative(&0, &10);
     assert_eq!(ids.len(), 3);
 }
+
+#[test]
+fn test_partial_refund_negotiation_flow() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &1000, &1, &None);
+
+    // 1. Dispute the escrow
+    client.dispute_escrow(
+        &1,
+        &String::from_str(&env, "Partial refund requested"),
+        &buyer,
+    );
+
+    // 2. Buyer proposes a 300 refund
+    client.propose_partial_refund(&1, &300, &buyer);
+
+    // 3. Seller accepts the proposal
+    client.accept_partial_refund(&1);
+
+    let escrow = client.get_escrow(&1);
+    assert_eq!(escrow.status, EscrowStatus::Resolved);
+
+    let token_client = token::Client::new(&env, &token_id);
+    // Buyer gets 300
+    assert_eq!(token_client.balance(&buyer), 300);
+    // Seller gets 700 - 35 (5% fee) = 665
+    assert_eq!(token_client.balance(&seller), 665);
+}
+
+#[test]
+fn test_propose_partial_refund_by_seller() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &1000, &1, &None);
+
+    client.dispute_escrow(
+        &1,
+        &String::from_str(&env, "Partial refund offered"),
+        &seller,
+    );
+
+    // Seller proposes a 400 refund
+    client.propose_partial_refund(&1, &400, &seller);
+
+    // Buyer accepts
+    client.accept_partial_refund(&1);
+
+    let escrow = client.get_escrow(&1);
+    assert_eq!(escrow.status, EscrowStatus::Resolved);
+
+    let token_client = token::Client::new(&env, &token_id);
+    assert_eq!(token_client.balance(&buyer), 400);
+    // 600 - 30 (5% fee) = 570
+    assert_eq!(token_client.balance(&seller), 570);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #1)")]
+fn test_propose_partial_refund_unauthorized() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &1000, &1, &None);
+
+    client.dispute_escrow(&1, &String::from_str(&env, "Dispute"), &buyer);
+
+    let unauthorized = Address::generate(&env);
+    client.propose_partial_refund(&1, &500, &unauthorized);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #21)")]
+fn test_propose_partial_refund_already_exists() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &1000, &1, &None);
+
+    client.dispute_escrow(&1, &String::from_str(&env, "Dispute"), &buyer);
+
+    client.propose_partial_refund(&1, &300, &buyer);
+    client.propose_partial_refund(&1, &400, &seller); // Fails
+}
+

@@ -154,6 +154,8 @@ pub enum DataKey {
     TotalFees(Address),
     FeeTokenIndex,
     ContractVersion,
+    /// Platform configuration storage key
+    PlatformConfig,
     /// Custom fee tier for an artisan (basis points)
     ArtisanFeeTier(Address),
     /// Referral reward percentage in basis points
@@ -477,9 +479,9 @@ impl EscrowContract {
         let config: PlatformConfig = env
             .storage()
             .persistent()
-            .get(&PLATFORM_FEE)
+            .get(&DataKey::PlatformConfig)
             .ok_or(Error::PlatformNotInitialized)?;
-        Self::extend_persistent(env, &PLATFORM_FEE);
+        Self::extend_persistent(env, &DataKey::PlatformConfig);
         Ok(config.admin)
     }
 
@@ -712,8 +714,8 @@ impl EscrowContract {
             stake_cooldown: DEFAULT_STAKE_COOLDOWN,
         };
 
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
 
         env.storage()
             .persistent()
@@ -764,8 +766,8 @@ impl EscrowContract {
         config.admin.require_auth();
 
         config.pending_admin = Some(new_admin);
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
     }
 
     /// Claim the administrative role (pending admin only).
@@ -778,8 +780,8 @@ impl EscrowContract {
         config.admin = pending.clone();
         config.pending_admin = None;
 
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
     }
     /// Create a new escrow for an order
     ///
@@ -1024,11 +1026,11 @@ impl EscrowContract {
     }
 
     fn get_platform_config_internal(env: &Env) -> PlatformConfig {
-        let config = env.storage().persistent().get(&PLATFORM_FEE);
+        let config = env.storage().persistent().get(&DataKey::PlatformConfig);
         if config.is_none() {
             env.panic_with_error(crate::Error::PlatformNotInitialized);
         }
-        Self::extend_persistent(env, &PLATFORM_FEE);
+        Self::extend_persistent(env, &DataKey::PlatformConfig);
         config.expect("")
     }
 
@@ -1777,8 +1779,8 @@ impl EscrowContract {
             stake_cooldown: config.stake_cooldown,
         };
 
-        env.storage().persistent().set(&PLATFORM_FEE, &new_config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &new_config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
         Self::emit_config_updated(
             &env,
             "platform_fee_bps",
@@ -1809,8 +1811,8 @@ impl EscrowContract {
             stake_cooldown: config.stake_cooldown,
         };
 
-        env.storage().persistent().set(&PLATFORM_FEE, &new_config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &new_config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
         Self::emit_config_updated(
             &env,
             "platform_wallet",
@@ -1828,8 +1830,8 @@ impl EscrowContract {
             .map(ConfigValue::Address)
             .unwrap_or_else(|| ConfigValue::String(String::from_str(&env, "unset")));
         config.moderator = Some(moderator.clone());
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
         Self::emit_config_updated(&env, "moderator", previous, ConfigValue::Address(moderator));
     }
 
@@ -2334,7 +2336,7 @@ impl EscrowContract {
         if let Some(config) = env
             .storage()
             .persistent()
-            .get::<Symbol, PlatformConfig>(&PLATFORM_FEE)
+            .get::<DataKey, PlatformConfig>(&DataKey::PlatformConfig)
         {
             if config.is_paused {
                 env.panic_with_error(crate::Error::ContractPaused);
@@ -2350,8 +2352,8 @@ impl EscrowContract {
 
         let mut config = Self::get_platform_config_internal(&env);
         config.is_paused = paused;
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
     }
 
     /// View: check if contract is paused.
@@ -2577,8 +2579,8 @@ impl EscrowContract {
 
         let mut config = Self::get_platform_config_internal(&env);
         config.min_stake_required = min_stake;
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
         Ok(())
     }
 
@@ -2590,8 +2592,8 @@ impl EscrowContract {
         let mut config = Self::get_platform_config_internal(&env);
         let old_value = config.wasm_upgrade_cooldown;
         config.wasm_upgrade_cooldown = cooldown_seconds;
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
 
         Self::emit_config_updated(
             &env,
@@ -2610,8 +2612,8 @@ impl EscrowContract {
         let mut config = Self::get_platform_config_internal(&env);
         let old_value = config.max_dispute_duration;
         config.max_dispute_duration = duration_seconds;
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
 
         Self::emit_config_updated(
             &env,
@@ -2630,8 +2632,8 @@ impl EscrowContract {
         let mut config = Self::get_platform_config_internal(&env);
         let old_value = config.stake_cooldown;
         config.stake_cooldown = cooldown_seconds;
-        env.storage().persistent().set(&PLATFORM_FEE, &config);
-        Self::extend_persistent(&env, &PLATFORM_FEE);
+        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
+        Self::extend_persistent(&env, &DataKey::PlatformConfig);
 
         Self::emit_config_updated(
             &env,
@@ -2657,7 +2659,7 @@ impl EscrowContract {
         env: Env,
         order_id: u32,
         refund_amount: i128,
-        proposed_by: Address,
+        caller: Address,
     ) -> Result<(), Error> {
         let escrow_opt: Option<Escrow> = env.storage().persistent().get(&(ESCROW, order_id));
         if escrow_opt.is_none() {
@@ -2669,13 +2671,13 @@ impl EscrowContract {
             return Err(Error::InvalidEscrowState);
         }
 
-        // Verify proposed_by is either the buyer or seller
-        if proposed_by != escrow.buyer && proposed_by != escrow.seller {
+        // Verify caller is either the buyer or seller
+        if caller != escrow.buyer && caller != escrow.seller {
             return Err(Error::Unauthorized);
         }
 
         // Require auth from the proposing party
-        proposed_by.require_auth();
+        caller.require_auth();
 
         if refund_amount <= 0 || refund_amount > escrow.amount {
             return Err(Error::InvalidRefundAmount);
@@ -2689,7 +2691,7 @@ impl EscrowContract {
         let proposal = PartialRefundProposal {
             order_id,
             refund_amount,
-            proposed_by,
+            proposed_by: caller,
             proposed_at: env.ledger().timestamp(),
         };
 
