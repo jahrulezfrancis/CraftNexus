@@ -49,7 +49,7 @@ fn setup_test(
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     // Set min amount to 0 for tests to pass with small amounts
     client.set_min_escrow_amount(&token_contract.address(), &0);
@@ -656,7 +656,7 @@ fn test_update_platform_fee() {
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     // Get initial fee
     assert_eq!(client.get_platform_fee(), 500);
@@ -720,7 +720,7 @@ fn test_update_platform_fee_too_high() {
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     // Try to set fee above max (10%)
     client.update_platform_fee(&1500);
@@ -764,7 +764,7 @@ fn test_initialize_emits_config_events() {
         &arbitrator,
         &500,
         &onboarding_contract,
-    );
+    ).unwrap();
 
     let events = env.events().all();
     let fee_event: ConfigUpdatedEvent = events
