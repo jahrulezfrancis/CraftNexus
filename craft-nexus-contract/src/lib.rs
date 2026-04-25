@@ -158,7 +158,8 @@ pub enum DataKey {
     PlatformConfig,
     /// Custom fee tier for an artisan (basis points)
     ArtisanFeeTier(Address),
-    /// Referral reward percentage in basis points
+    /// Deprecated referral reward percentage in basis points.
+    /// Retained only for storage compatibility; referral payout logic is not implemented.
     ReferralRewardBps,
     /// Staked token amount and asset for an artisan
     ArtisanStake(Address),
@@ -375,6 +376,31 @@ pub struct TokensUnstakedEvent {
 #[contracttype]
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(any(test, feature = "testutils"), derive(Debug))]
+pub struct MetadataVerifiedEvent {
+    pub order_id: u64,
+    pub verifier: Address,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "testutils"), derive(Debug))]
+pub struct PlatformPausedEvent {
+    pub initiator: Address,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "testutils"), derive(Debug))]
+pub struct PlatformUnpausedEvent {
+    pub initiator: Address,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "testutils"), derive(Debug))]
 pub struct EscrowMetadata {
     pub ipfs_hash: Option<String>,
     pub metadata_hash: Option<Bytes>,
@@ -534,6 +560,46 @@ impl EscrowContract {
                 artisan.clone(),
             ),
             ArtisanFeeTierUpdatedEvent { artisan, fee_bps },
+        );
+    }
+
+    fn emit_metadata_verified(env: &Env, order_id: u32, verifier: Address) {
+        env.events().publish(
+            (
+                Symbol::new(env, "metadata_verified"),
+                (order_id as u64),
+            ),
+            MetadataVerifiedEvent {
+                order_id: order_id as u64,
+                verifier,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+    }
+
+    fn emit_platform_paused(env: &Env, initiator: Address) {
+        env.events().publish(
+            (
+                Symbol::new(env, "platform_paused"),
+                initiator.clone(),
+            ),
+            PlatformPausedEvent {
+                initiator,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+    }
+
+    fn emit_platform_unpaused(env: &Env, initiator: Address) {
+        env.events().publish(
+            (
+                Symbol::new(env, "platform_unpaused"),
+                initiator.clone(),
+            ),
+            PlatformUnpausedEvent {
+                initiator,
+                timestamp: env.ledger().timestamp(),
+            },
         );
     }
 
@@ -1611,6 +1677,36 @@ impl EscrowContract {
         computed_bytes == stored_hash
     }
 
+    /// Authorized verification that records successful metadata matching on-chain.
+    ///
+    /// Only the escrow buyer, seller, or admin may call this method. A successful verification
+    /// emits a permanent MetadataVerified event.
+    pub fn verify_metadata_reveal_recorded(
+        env: Env,
+        order_id: u32,
+        proof: MetadataRevealProof,
+        authorized_address: Address,
+    ) -> bool {
+        authorized_address.require_auth();
+
+        let escrow = Self::get_escrow(env.clone(), order_id);
+        let admin = Self::get_admin(&env)
+            .unwrap_or_else(|_| env.panic_with_error(crate::Error::Unauthorized));
+
+        let is_authorized = authorized_address == escrow.buyer
+            || authorized_address == escrow.seller
+            || authorized_address == admin;
+        if !is_authorized {
+            env.panic_with_error(crate::Error::Unauthorized);
+        }
+
+        let is_valid = Self::verify_metadata_reveal(env.clone(), order_id, proof);
+        if is_valid {
+            Self::emit_metadata_verified(&env, order_id, authorized_address);
+        }
+        is_valid
+    }
+
     /// Check if escrow can be auto-released
     ///
     /// # Arguments
@@ -2342,7 +2438,8 @@ impl EscrowContract {
         Ok(results)
     }
 
-    // ── Circuit Breaker (#96) ───────────────────────────────────────
+    // NOTE: referral payout support has been removed from the contract. The configuration key is
+    // retained only for storage compatibility during upgrades.
 
     /// Check that the contract is not paused. Panics with ContractPaused if it is.
     fn check_not_paused(env: &Env) {
@@ -2367,6 +2464,12 @@ impl EscrowContract {
         config.is_paused = paused;
         env.storage().persistent().set(&DataKey::PlatformConfig, &config);
         Self::extend_persistent(&env, &DataKey::PlatformConfig);
+
+        if paused {
+            Self::emit_platform_paused(&env, admin);
+        } else {
+            Self::emit_platform_unpaused(&env, admin);
+        }
     }
 
     /// View: check if contract is paused.

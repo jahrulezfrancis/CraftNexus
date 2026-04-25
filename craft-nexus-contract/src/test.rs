@@ -2280,6 +2280,95 @@ fn test_verify_metadata_reveal_success() {
     assert!(is_valid);
 }
 
+#[test]
+fn test_verify_metadata_reveal_authorized_emits_metadata_verified_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &100_000_000);
+
+    let content = Bytes::from_slice(&env, b"test metadata content");
+    let content_hash = env.crypto().sha256(&content);
+    let content_hash_bytes: Bytes = content_hash.into();
+
+    client.create_escrow_with_metadata(
+        &buyer,
+        &seller,
+        &token_id,
+        &500,
+        &1,
+        &Some(3600),
+        &None,
+        &Some(content_hash_bytes.clone()),
+    );
+
+    let proof = MetadataRevealProof {
+        content: content.clone(),
+        secret: None,
+    };
+
+    let is_valid = client.verify_metadata_reveal_recorded(&1, &proof, &buyer);
+    assert!(is_valid);
+
+    let events = env.events().all();
+    let last_event = events.last().unwrap();
+    assert_eq!(
+        last_event.1,
+        vec![
+            &env,
+            Symbol::new(&env, "metadata_verified").into_val(&env),
+            (1u64).into_val(&env),
+        ]
+    );
+
+    let event: MetadataVerifiedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(event.order_id, 1);
+    assert_eq!(event.verifier, buyer);
+    assert_eq!(event.timestamp, 1711368000);
+}
+
+#[test]
+fn test_set_paused_emits_platform_status_events() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _, _, _, _, _, admin) = setup_test(&env, true);
+
+    client.set_paused(&true);
+
+    let events = env.events().all();
+    let last_event = events.last().unwrap();
+    assert_eq!(
+        last_event.1,
+        vec![
+            &env,
+            Symbol::new(&env, "platform_paused").into_val(&env),
+            admin.clone().into_val(&env),
+        ]
+    );
+
+    let paused_event: PlatformPausedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(paused_event.initiator, admin.clone());
+    assert_eq!(paused_event.timestamp, 1711368000);
+
+    client.set_paused(&false);
+
+    let events = env.events().all();
+    let last_event = events.last().unwrap();
+    assert_eq!(
+        last_event.1,
+        vec![
+            &env,
+            Symbol::new(&env, "platform_unpaused").into_val(&env),
+            admin.clone().into_val(&env),
+        ]
+    );
+
+    let unpaused_event: PlatformUnpausedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(unpaused_event.initiator, admin);
+    assert_eq!(unpaused_event.timestamp, 1711368000);
+}
+
 /// Test metadata reveal verification with invalid content (Issue #122)
 #[test]
 fn test_verify_metadata_reveal_invalid_content() {
