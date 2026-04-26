@@ -35,14 +35,13 @@ fn setup_test(
     let token_admin_client = token::StellarAssetClient::new(env, &token_contract.address());
 
     let arbitrator = Address::generate(env);
-    let onboarding_contract = Address::generate(env);
 
     // Set a non-zero timestamp for event tests
     env.ledger().with_mut(|li| {
         li.timestamp = 1711368000; // 2024-03-25
     });
 
-    // Initialize contract with platform config
+    // Initialize contract with platform config (no onboarding contract for unit tests)
     client.initialize(
         &platform_wallet,
         &admin,
@@ -576,13 +575,12 @@ fn test_platform_fee_deduction_10_percent() {
     let arbitrator = Address::generate(&env);
 
     // Initialize with 10% fee
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin,
         &arbitrator,
         &1000,
-        &onboarding_contract,
+        &None,
     );
 
     token_admin_client.mint(&buyer, &10_000_000);
@@ -649,7 +647,6 @@ fn test_update_platform_fee() {
     let arbitrator = Address::generate(&env);
 
     // Initialize with 5% fee
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin,
@@ -712,7 +709,6 @@ fn test_update_platform_fee_too_high() {
     let arbitrator = Address::generate(&env);
 
     // Initialize with 5% fee
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin,
@@ -756,7 +752,6 @@ fn test_initialize_emits_config_events() {
     let platform_wallet = Address::generate(&env);
     let arbitrator = Address::generate(&env);
 
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin,
@@ -1018,13 +1013,12 @@ fn test_fee_rounding_custom_bps_025_percent() {
     let arbitrator = Address::generate(&env);
 
     // 25 bps = 0.25%
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin,
         &arbitrator,
         &25,
-        &onboarding_contract,
+        &None,
     );
     assert_eq!(client.calculate_fee_for_amount(&1000), 2); // floor(2.5) => 2
     assert_eq!(client.calculate_fee_for_amount(&399), 0); // floor(0.9975) => 0
@@ -1044,13 +1038,12 @@ fn test_integration_multiple_tokens_and_escrows() {
     let admin = Address::generate(&env);
     let arbitrator = Address::generate(&env);
 
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin,
         &arbitrator,
         &500,
-        &onboarding_contract,
+        &None,
     );
 
     // Token A
@@ -1421,13 +1414,12 @@ fn test_contract_address_admin_is_authorized() {
         li.timestamp = 1711368000;
     });
 
-    let onboarding_contract = Address::generate(&env);
     client.initialize(
         &platform_wallet,
         &admin_contract,
         &arbitrator,
         &500,
-        &onboarding_contract,
+        &None,
     );
     client.set_min_escrow_amount(&token_contract.address(), &0);
 
@@ -2277,6 +2269,95 @@ fn test_verify_metadata_reveal_success() {
 
     let is_valid = client.verify_metadata_reveal(&1, &proof);
     assert!(is_valid);
+}
+
+#[test]
+fn test_verify_metadata_reveal_authorized_emits_metadata_verified_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    token_admin.mint(&buyer, &100_000_000);
+
+    let content = Bytes::from_slice(&env, b"test metadata content");
+    let content_hash = env.crypto().sha256(&content);
+    let content_hash_bytes: Bytes = content_hash.into();
+
+    client.create_escrow_with_metadata(
+        &buyer,
+        &seller,
+        &token_id,
+        &500,
+        &1,
+        &Some(3600),
+        &None,
+        &Some(content_hash_bytes.clone()),
+    );
+
+    let proof = MetadataRevealProof {
+        content: content.clone(),
+        secret: None,
+    };
+
+    let is_valid = client.verify_metadata_reveal_recorded(&1, &proof, &buyer);
+    assert!(is_valid);
+
+    let events = env.events().all();
+    let last_event = events.last().unwrap();
+    assert_eq!(
+        last_event.1,
+        vec![
+            &env,
+            Symbol::new(&env, "metadata_verified").into_val(&env),
+            (1u64).into_val(&env),
+        ]
+    );
+
+    let event: MetadataVerifiedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(event.order_id, 1);
+    assert_eq!(event.verifier, buyer);
+    assert_eq!(event.timestamp, 1711368000);
+}
+
+#[test]
+fn test_set_paused_emits_platform_status_events() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _, _, _, _, _, admin) = setup_test(&env, true);
+
+    client.set_paused(&true);
+
+    let events = env.events().all();
+    let last_event = events.last().unwrap();
+    assert_eq!(
+        last_event.1,
+        vec![
+            &env,
+            Symbol::new(&env, "platform_paused").into_val(&env),
+            admin.clone().into_val(&env),
+        ]
+    );
+
+    let paused_event: PlatformPausedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(paused_event.initiator, admin.clone());
+    assert_eq!(paused_event.timestamp, 1711368000);
+
+    client.set_paused(&false);
+
+    let events = env.events().all();
+    let last_event = events.last().unwrap();
+    assert_eq!(
+        last_event.1,
+        vec![
+            &env,
+            Symbol::new(&env, "platform_unpaused").into_val(&env),
+            admin.clone().into_val(&env),
+        ]
+    );
+
+    let unpaused_event: PlatformUnpausedEvent = last_event.2.try_into_val(&env).unwrap();
+    assert_eq!(unpaused_event.initiator, admin);
+    assert_eq!(unpaused_event.timestamp, 1711368000);
 }
 
 /// Test metadata reveal verification with invalid content (Issue #122)
