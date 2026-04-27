@@ -119,6 +119,15 @@ pub struct UserMetrics {
     pub total_volume: i128,
 }
 
+#[contracttype]
+#[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "testutils"), derive(Debug))]
+pub struct UserOnboardedEvent {
+    pub user: Address,
+    pub username: String,
+    pub role: UserRole,
+}
+
 /// A single entry in a user's verification history log (#63)
 #[contracttype]
 #[derive(Clone, Eq, PartialEq)]
@@ -756,11 +765,17 @@ impl OnboardingContract {
         env.storage()
             .persistent()
             .set(&DataKey::Username(normalized.clone()), &user);
-        Self::extend_persistent(&env, &DataKey::Username(normalized));
+        Self::extend_persistent(&env, &DataKey::Username(normalized.clone()));
 
         // Emit event
-        env.events()
-            .publish((Symbol::new(&env, "UserOnboarded"),), &user);
+        env.events().publish(
+            (Symbol::new(&env, "UserOnboarded"),),
+            UserOnboardedEvent {
+                user: user.clone(),
+                username: normalized,
+                role,
+            },
+        );
 
         profile
     }
