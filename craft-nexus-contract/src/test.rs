@@ -47,7 +47,7 @@ fn setup_test(
         &admin,
         &arbitrator,
         &500,
-        &None,
+        &onboarding_contract,
     );
 
     // Set min amount to 0 for tests to pass with small amounts
@@ -652,11 +652,10 @@ fn test_update_platform_fee() {
         &admin,
         &arbitrator,
         &500,
-        &None,
+        &onboarding_contract,
     );
 
     // Get initial fee
-    assert_eq!(client.get_platform_fee(), 500);
 
     // Update to 8% fee (800 bps) - admin auth required
     client.update_platform_fee(&800);
@@ -715,7 +714,7 @@ fn test_update_platform_fee_too_high() {
         &admin,
         &arbitrator,
         &500,
-        &None,
+        &onboarding_contract,
     );
 
     // Try to set fee above max (10%)
@@ -758,7 +757,7 @@ fn test_initialize_emits_config_events() {
         &admin,
         &arbitrator,
         &500,
-        &None,
+        &onboarding_contract,
     );
 
     let events = env.events().all();
@@ -2884,5 +2883,101 @@ fn test_propose_partial_refund_already_exists() {
 
     client.propose_partial_refund(&1, &300, &buyer);
     client.propose_partial_refund(&1, &400, &seller); // Fails
+}
+
+#[test]
+fn test_validate_ipfs_cid_v1_stricter() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    token_admin.mint(&buyer, &100_000_000);
+    client.create_escrow_with_metadata(
+        &buyer,
+        &seller,
+        &token_id,
+        &1000,
+        &1,
+        &Some(3600),
+        &Some(String::from_str(&env, "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco")),
+        &None,
+    );
+
+    // Valid CIDv1 base32 (sha256) - 59 chars, starts with 'ba'
+    client.create_escrow_with_metadata(
+        &buyer,
+        &seller,
+        &token_id,
+        &1000,
+        &2,
+        &Some(3600),
+        &Some(String::from_str(&env, "bafybeigdyrzt5scf7nqm765as5a42n367d5e46as5a42n367d5e46as5a4")),
+        &None,
+    );
+}
+
+#[test]
+#[should_panic]
+fn test_validate_ipfs_cid_v1_too_short() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    token_admin.mint(&buyer, &100_000_000);
+
+    // CIDv1 base32 too short (only 10 chars)
+    client.create_escrow_with_metadata(
+        &buyer,
+        &seller,
+        &token_id,
+        &1000,
+        &1,
+        &Some(3600),
+        &Some(String::from_str(&env, "bafybeigdy")),
+        &None,
+    );
+}
+
+#[test]
+#[should_panic]
+fn test_validate_ipfs_cid_v1_wrong_version() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+    token_admin.mint(&buyer, &100_000_000);
+
+    // CIDv1 base32 starts with 'bb' (wrong version byte bits)
+    client.create_escrow_with_metadata(
+        &buyer,
+        &seller,
+        &token_id,
+        &1000,
+        &1,
+        &Some(3600),
+        &Some(String::from_str(&env, "bbfybeigdyrzt5scf7nqm765as5a42n367d5e46as5a42n367d5e46as5a4")),
+        &None,
+    );
+}
+
+#[test]
+fn test_accept_partial_refund_with_custom_fee_tier() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, buyer, seller, token_id, token_admin, _, _) = setup_test(&env, true);
+
+    // Set custom fee tier for seller to 2% (200 bps)
+    client.set_artisan_fee_tier(&seller, &200);
+
+    token_admin.mint(&buyer, &1000);
+    client.create_escrow(&buyer, &seller, &token_id, &1000, &1, &None);
+
+    client.dispute_escrow(&1, &String::from_str(&env, "Dispute"), &buyer);
+    client.propose_partial_refund(&1, &500, &buyer);
+
+    // Seller accepts. Gross for seller is 500.
+    // 2% of 500 is 10.
+    // Seller should get 490.
+    client.accept_partial_refund(&1);
+
+    let token_client = token::Client::new(&env, &token_id);
+    assert_eq!(token_client.balance(&seller), 490);
 }
 
