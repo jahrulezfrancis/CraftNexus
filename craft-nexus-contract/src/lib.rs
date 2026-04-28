@@ -728,10 +728,9 @@ impl EscrowContract {
     fn get_admin(env: &Env) -> Result<Address, Error> {
         let config: PlatformConfig = env
             .storage()
-            .persistent()
+            .instance()
             .get(&DataKey::PlatformConfig)
             .ok_or(Error::PlatformNotInitialized)?;
-        Self::extend_persistent(env, &DataKey::PlatformConfig);
         Ok(config.admin)
     }
 
@@ -921,7 +920,6 @@ impl EscrowContract {
         env.storage()
             .persistent()
             .set(&DataKey::MaxReleaseWindow, &max_window);
-        Self::extend_persistent(&env, &DataKey::MaxReleaseWindow);
     }
 
     /// Set the minimum release window to prevent "flash" auto-releases (admin only).
@@ -948,8 +946,7 @@ impl EscrowContract {
         let old_min = config.min_release_window;
         config.min_release_window = min_window;
 
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         Self::emit_config_updated(
             &env,
@@ -996,7 +993,6 @@ impl EscrowContract {
         env.storage()
             .persistent()
             .set(&DataKey::WhitelistedTokens, &whitelist);
-        Self::extend_persistent(&env, &DataKey::WhitelistedTokens);
     }
 
     /// Remove a token from the platform whitelist (admin only).
@@ -1016,7 +1012,6 @@ impl EscrowContract {
         env.storage()
             .persistent()
             .set(&DataKey::WhitelistedTokens, &whitelist);
-        Self::extend_persistent(&env, &DataKey::WhitelistedTokens);
     }
 
     /// Check whether a specific token is on the whitelist.
@@ -1088,8 +1083,7 @@ impl EscrowContract {
             min_release_window: DEFAULT_MIN_RELEASE_WINDOW,
         };
 
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         env.storage()
             .persistent()
@@ -1144,8 +1138,7 @@ impl EscrowContract {
         config.admin.require_auth();
 
         config.pending_admin = Some(new_admin);
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
     }
 
     /// Claim the administrative role (pending admin only).
@@ -1158,8 +1151,7 @@ impl EscrowContract {
         config.admin = pending.clone();
         config.pending_admin = None;
 
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
     }
 
     /// Cancel an in-progress two-step admin transfer (current admin only).
@@ -1172,8 +1164,7 @@ impl EscrowContract {
         }
 
         config.pending_admin = None;
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
         Ok(())
     }
 
@@ -1743,8 +1734,9 @@ impl EscrowContract {
     }
 
     fn get_platform_config_internal(env: &Env) -> PlatformConfig {
+        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTENSION);
         env.storage()
-            .persistent()
+            .instance()
             .get(&DataKey::PlatformConfig)
             .unwrap_or_else(|| env.panic_with_error(crate::Error::PlatformNotInitialized))
     }
@@ -2678,8 +2670,7 @@ impl EscrowContract {
             min_release_window: config.min_release_window,
         };
 
-        env.storage().persistent().set(&DataKey::PlatformConfig, &new_config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &new_config);
         Self::emit_config_updated(
             &env,
             "platform_fee_bps",
@@ -2712,8 +2703,7 @@ impl EscrowContract {
             min_release_window: config.min_release_window,
         };
 
-        env.storage().persistent().set(&DataKey::PlatformConfig, &new_config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &new_config);
         Self::emit_config_updated(
             &env,
             "platform_wallet",
@@ -2744,8 +2734,7 @@ impl EscrowContract {
         let old_policy = config.expired_dispute_fee_policy;
         config.expired_dispute_fee_policy = policy;
 
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         Self::emit_config_updated(
             &env,
@@ -2772,8 +2761,7 @@ impl EscrowContract {
             .map(ConfigValue::Address)
             .unwrap_or_else(|| ConfigValue::String(String::from_str(&env, "unset")));
         config.moderator = Some(moderator.clone());
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
         Self::emit_config_updated(&env, "moderator", previous, ConfigValue::Address(moderator));
     }
 
@@ -3295,7 +3283,7 @@ impl EscrowContract {
     fn check_not_paused(env: &Env) {
         if let Some(config) = env
             .storage()
-            .persistent()
+            .instance()
             .get::<DataKey, PlatformConfig>(&DataKey::PlatformConfig)
         {
             if config.is_paused {
@@ -3312,8 +3300,7 @@ impl EscrowContract {
 
         let mut config = Self::get_platform_config_internal(&env);
         config.is_paused = paused;
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         if paused {
             Self::emit_platform_paused(&env, admin);
@@ -3686,8 +3673,7 @@ impl EscrowContract {
 
         let mut config = Self::get_platform_config_internal(&env);
         config.min_stake_required = min_stake;
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
         Ok(())
     }
 
@@ -3699,8 +3685,7 @@ impl EscrowContract {
         let mut config = Self::get_platform_config_internal(&env);
         let old_value = config.wasm_upgrade_cooldown;
         config.wasm_upgrade_cooldown = cooldown_seconds;
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         Self::emit_config_updated(
             &env,
@@ -3719,8 +3704,7 @@ impl EscrowContract {
         let mut config = Self::get_platform_config_internal(&env);
         let old_value = config.max_dispute_duration;
         config.max_dispute_duration = duration_seconds;
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         Self::emit_config_updated(
             &env,
@@ -3739,8 +3723,7 @@ impl EscrowContract {
         let mut config = Self::get_platform_config_internal(&env);
         let old_value = config.stake_cooldown;
         config.stake_cooldown = cooldown_seconds;
-        env.storage().persistent().set(&DataKey::PlatformConfig, &config);
-        Self::extend_persistent(&env, &DataKey::PlatformConfig);
+        env.storage().instance().set(&DataKey::PlatformConfig, &config);
 
         Self::emit_config_updated(
             &env,
